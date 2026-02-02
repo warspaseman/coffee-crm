@@ -1,0 +1,12 @@
+# Python мусор
+__pycache__/
+*.pyc
+venv/
+.env
+
+# База данных 
+# db.sqlite3
+
+# Статика и медиа 
+media/
+staticfiles/

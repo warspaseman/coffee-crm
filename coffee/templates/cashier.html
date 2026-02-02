@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart POS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .menu-item { cursor: pointer; transition: 0.2s; height: 100%; border: none; }
+        .menu-item:hover { transform: translateY(-5px); }
+        .receipt-area { height: 100vh; background: #f8f9fa; border-left: 1px solid #dee2e6; }
+        .category-btn.active { background-color: #0d6efd; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 p-4">
+            <div class="d-flex gap-2 mb-4 overflow-auto pb-2">
+                <button class="btn btn-outline-primary category-btn rounded-pill px-4" onclick="filter('coffee', this)">Кофе</button>
+                <button class="btn btn-outline-primary category-btn rounded-pill px-4" onclick="filter('dessert', this)">Десерты</button>
+            </div>
+
+            <div class="row g-3">
+                {% for item in items %}
+                <div class="col-md-3 col-6 item-card" data-category="{{ item.category }}">
+                    <div class="card menu-item shadow-sm" onclick="checkAndAddToCart({{ item.id }}, '{{ item.name }}', {{ item.price }}, '{{ item.category }}')">
+                        {% if item.image %}
+                            <img src="{{ item.image.url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 120px;">☕</div>
+                        {% endif %}
+                        <div class="card-body text-center p-2">
+                            <h6 class="card-title mb-1">{{ item.name }}</h6>
+                            <small class="text-primary fw-bold">{{ item.price }} ₸</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-4 receipt-area p-4 d-flex flex-column shadow">
+            <h4 class="mb-4">🧾 Новый заказ</h4>
+            <div id="cart-items" class="flex-grow-1 overflow-auto mb-3 pe-2">
+                </div>
+            <div class="mt-auto bg-white p-3 rounded shadow-sm">
+                <div class="d-flex justify-content-between h4 mb-3">
+                    <span>Итого:</span>
+                    <span id="total-price" class="text-primary">0 ₸</span>
+                </div>
+                <button onclick="submitOrder()" class="btn btn-success w-100 btn-lg py-3">Оплатить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="optionsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Настройка</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Размер:</h6>
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="size" id="sizeS" value="S" autocomplete="off">
+                    <label class="btn btn-outline-secondary" for="sizeS">S (-20%)</label>
+
+                    <input type="radio" class="btn-check" name="size" id="sizeM" value="M" checked autocomplete="off">
+                    <label class="btn btn-outline-secondary" for="sizeM">M (Стандарт)</label>
+
+                    <input type="radio" class="btn-check" name="size" id="sizeL" value="L" autocomplete="off">
+                    <label class="btn btn-outline-secondary" for="sizeL">L (+25%)</label>
+                </div>
+
+                <h6>Добавки:</h6>
+                <div class="modifiers-container" style="max-height: 300px; overflow-y: auto;">
+                    
+                    {% regroup modifiers by get_category_display as modifier_list %}
+
+                    {% for group in modifier_list %}
+                        <h6 class="text-muted mt-2 border-bottom pb-1">{{ group.grouper }}</h6>
+                        
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {% for mod in group.list %}
+                            <input type="checkbox" class="btn-check mod-check" 
+                                id="mod{{ mod.id }}" 
+                                value="{{ mod.id }}" 
+                                data-price="{{ mod.price }}" 
+                                data-name="{{ mod.name }}">
+                            
+                            <label class="btn btn-outline-warning text-dark btn-sm" for="mod{{ mod.id }}">
+                                {{ mod.name }} <br> <small class="text-secondary">+{{ mod.price }}₸</small>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary w-100" onclick="confirmAddToCart()">Добавить в чек</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let cart = [];
+    let currentItem = {};
+    let modal;
+
+    window.onload = () => { modal = new bootstrap.Modal(document.getElementById('optionsModal')); }
+
+    function checkAndAddToCart(id, name, price, category) {
+        if (category === 'coffee') {
+            // Если кофе - открываем настройки (размер, сиропы)
+            openModal(id, name, price);
+        } else {
+            // Если десерт - сразу добавляем 1 шт
+            addSimpleItemToCart(id, name, price);
+        }
+    }
+    function openModal(id, name, price) {
+        currentItem = { id, name, price };
+        document.getElementById('modalTitle').innerText = name;
+        document.getElementById('sizeM').checked = true;
+        document.querySelectorAll('.mod-check').forEach(el => el.checked = false);
+        modal.show();
+    }
+    function addSimpleItemToCart(id, name, price) {
+        cart.push({
+            id: id,
+            name: name,
+            size: 'M',        // Технически это "Стандарт" (коэфф 1.0)
+            sizeLabel: '1 шт', // Красивая надпись в чеке
+            modifiers: [],
+            modifiersLabels: [],
+            price: price,
+            qty: 1
+        });
+        renderCart();
+    }
+    function confirmAddToCart() {
+        // Читаем размер
+        let size = document.querySelector('input[name="size"]:checked').value;
+        let sizeLabel = size === 'S' ? 'Маленький' : (size === 'L' ? 'Большой' : 'Средний');
+        
+        // Читаем модификаторы
+        let mods = [];
+        let modsNames = [];
+        let modsPrice = 0;
+        document.querySelectorAll('.mod-check:checked').forEach(el => {
+            mods.push(parseInt(el.value));
+            modsNames.push(el.dataset.name);
+            modsPrice += parseFloat(el.dataset.price);
+        });
+
+        // Считаем цену за единицу
+        let sizeMult = size === 'S' ? 0.8 : (size === 'L' ? 1.25 : 1.0);
+        let finalItemPrice = (currentItem.price * sizeMult) + modsPrice;
+
+        cart.push({
+            id: currentItem.id,
+            name: currentItem.name,
+            size: size,
+            sizeLabel: sizeLabel,
+            modifiers: mods,
+            modifiersLabels: modsNames,
+            price: Math.round(finalItemPrice),
+            qty: 1
+        });
+
+        renderCart();
+        modal.hide();
+    }
+
+    function renderCart() {
+        let container = document.getElementById('cart-items');
+        container.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            total += item.price;
+            let modsHtml = item.modifiersLabels.length ? `<br><small class="text-warning">+ ${item.modifiersLabels.join(', ')}</small>` : '';
+            
+            container.innerHTML += `
+                <div class="card mb-2 border-0 shadow-sm">
+                    <div class="card-body p-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${item.name}</strong> <span class="badge bg-secondary">${item.size}</span>
+                            ${modsHtml}
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">${item.price} ₸</div>
+                            <button onclick="removeFromCart(${index})" class="btn btn-sm btn-link text-danger p-0">удалить</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('total-price').innerText = total + " ₸";
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function submitOrder() {
+        if (!cart.length) return alert('Корзина пуста');
+        
+        fetch('/cashier/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({ items: cart })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                alert('Заказ отправлен!');
+                cart = [];
+                renderCart();
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+
+    function filter(cat, btn) {
+        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.item-card').forEach(card => {
+            card.style.display = (cat === 'all' || card.dataset.category === cat) ? 'block' : 'none';
+        });
+    }
+</script>
+</body>
+</html>
