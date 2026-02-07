@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Архив заказов (24 часа)</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        .archive-container { padding: 40px; max-width: 1000px; margin: 0 auto; }
+        .archive-header { font-size: 32px; font-weight: 800; margin-bottom: 30px; text-align: center; color: var(--text-main); }
+        .archive-table { width: 100%; border-collapse: collapse; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .archive-table th { background: #333; color: white; padding: 15px; text-align: left; }
+        .archive-table td { padding: 15px; border-bottom: 1px solid #eee; color: var(--text-main); }
+        .badge-done { background: #e0e0e0; padding: 5px 10px; border-radius: 5px; color: #555; font-size: 14px; }
+    </style>
+</head>
+<body style="overflow-y: auto; height: auto;">
+
+    <div class="nav-back" style="padding: 20px;">
+        <a href="{% url 'home' %}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Назад в меню
+        </a>
+    </div>
+
+    <div class="archive-container">
+        <div class="archive-header">История заказов (24 часа)</div>
+        
+        <table class="archive-table">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Состав заказа</th>
+                    <th>Время создания</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><strong>#{{ order.id }}</strong></td>
+                    <td>
+                        {% for item in order.items.all %}
+                            {{ item.menu_item.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ order.created_at|date:"H:i" }}</td>
+                    <td><span class="badge-done">Выдан</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 30px; color: #999;">
+                        За последние 24 часа заказов не было
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

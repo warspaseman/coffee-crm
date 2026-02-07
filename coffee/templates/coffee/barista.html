@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Barista Screen</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #F3F4F6; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; }
+        .btn-back {
+            background-color: #E5E7EB; color: #1F2937; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin-bottom: 20px;
+        }
+        .kanban-board { display: flex; gap: 20px; height: 100%; }
+        .kanban-column { flex: 1; background: #ffffff; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .column-header { padding: 20px; text-align: center; font-weight: 800; background-color: #FCD34D; color: #1F2937; }
+        .column-subheader { display: flex; justify-content: space-between; padding: 10px 20px; background: #FFFBEB; font-size: 12px; font-weight: 600; color: #92400E; }
+        .orders-list { flex-grow: 1; padding: 15px; overflow-y: auto; background-color: #F9FAFB; }
+        .order-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #E5E7EB; }
+        .card-top { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 800; font-size: 20px; }
+        
+        /* Таймер */
+        .timer { font-size: 16px; font-weight: 700; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 6px; }
+        .timer.expired { background: #1F2937; color: #fff; } /* Если время вышло */
+
+        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; margin-top: 10px; }
+        .btn-green { background-color: #059669; }
+        .btn-gray { background-color: #6B7280; }
+    </style>
+</head>
+<body>
+
+    <a href="{% url 'home' %}" class="btn-back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span class="t-back">Назад</span>
+    </a>
+
+    <div class="kanban-board">
+        <div class="kanban-column">
+            <div class="column-header"><span class="t-prep">Готовятся</span></div>
+            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-timer">ТАЙМЕР (5 мин)</span></div>
+            <div id="pending-orders" class="orders-list"></div>
+        </div>
+        <div class="kanban-column">
+            <div class="column-header"><span class="t-ready">Готовы</span></div>
+            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-action">Действие</span></div>
+            <div id="ready-orders" class="orders-list"></div>
+        </div>
+        <div class="kanban-column">
+            <div class="column-header"><span class="t-sent">Отправлены</span></div>
+            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-status">Статус</span></div>
+            <div id="completed-orders" class="orders-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const dict = {
+            'ru': { 'back': 'Назад', 'prep': 'ГОТОВЯТСЯ', 'ready': 'ГОТОВЫ', 'sent': 'ОТПРАВЛЕНЫ', 'order': 'ЗАКАЗ', 'timer': 'ТАЙМЕР', 'action': 'Действие', 'status': 'Статус', 'btn_ready': '✅ Готово', 'btn_give': '📤 Отдать', 'given': 'Выдан' },
+            'en': { 'back': 'Back', 'prep': 'PREPARING', 'ready': 'READY', 'sent': 'COMPLETED', 'order': 'ORDER', 'timer': 'TIMER', 'action': 'Action', 'status': 'Status', 'btn_ready': '✅ Done', 'btn_give': '📤 Serve', 'given': 'Served' }
+        };
+
+        function applyLang() {
+            const lang = localStorage.getItem('pos_lang') || 'ru';
+            document.querySelectorAll('[class^="t-"]').forEach(el => {
+                const key = el.className.split(' ')[0].replace('t-', '');
+                if (dict[lang][key]) el.innerText = dict[lang][key];
+            });
+            return lang;
+        }
+
+        // --- ЛОГИКА ТАЙМЕРА И ЗАКАЗОВ ---
+        function loadOrders() {
+            fetch('/api/orders/')
+                .then(r => r.json())
+                .then(data => renderOrders(data.orders));
+        }
+
+        function renderOrders(orders) {
+            const pending = document.getElementById('pending-orders');
+            const ready = document.getElementById('ready-orders');
+            const completed = document.getElementById('completed-orders');
+            
+            pending.innerHTML = ''; ready.innerHTML = ''; completed.innerHTML = '';
+            const lang = localStorage.getItem('pos_lang') || 'ru';
+
+            orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'order-card';
+                
+                if (order.status === 'pending') {
+                    // РАСЧЕТ ТАЙМЕРА
+                    // Получаем время создания
+                    const createdTime = new Date(order.created_at).getTime();
+                    const now = new Date().getTime();
+                    // Разница в секундах
+                    const diff = Math.floor((now - createdTime) / 1000);
+                    // 5 минут = 300 секунд
+                    let timeLeft = 300 - diff;
+                    
+                    let timerText = "00:00";
+                    let timerClass = "timer";
+
+                    if (timeLeft > 0) {
+                        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                        const s = (timeLeft % 60).toString().padStart(2, '0');
+                        timerText = `${m}:${s}`;
+                    } else {
+                        timerText = "00:00";
+                        timerClass = "timer expired";
+                    }
+
+                    card.innerHTML = `
+                        <div class="card-top">
+                            <span>#${order.id}</span>
+                            <span class="${timerClass}">${timerText}</span>
+                        </div>
+                        <div style="margin-bottom:15px; font-size:16px;">${order.item_name}</div>
+                        <button class="btn-action btn-green" onclick="updateStatus(${order.id}, 'ready')">${dict[lang]['btn_ready']}</button>
+                    `;
+                    pending.appendChild(card);
+                } 
+                else if (order.status === 'ready') {
+                    card.innerHTML = `
+                        <div class="card-top"><span>#${order.id}</span></div>
+                        <div style="margin-bottom:15px;">${order.item_name}</div>
+                        <button class="btn-action btn-gray" onclick="updateStatus(${order.id}, 'completed')">${dict[lang]['btn_give']}</button>
+                    `;
+                    ready.appendChild(card);
+                } 
+                else if (order.status === 'completed') {
+                    card.style.opacity = "0.6";
+                    card.innerHTML = `
+                        <div class="card-top">
+                            <span>#${order.id}</span>
+                            <span style="font-size:12px; background:#eee; padding:4px;">${dict[lang]['given']}</span>
+                        </div>
+                        <div>${order.item_name}</div>
+                    `;
+                    completed.appendChild(card);
+                }
+            });
+        }
+
+        function updateStatus(id, status) {
+            fetch(`/api/orders/update/${id}/`, {
+                method: 'POST', body: JSON.stringify({status: status})
+            }).then(() => loadOrders());
+        }
+
+        // Обновляем каждую секунду (чтобы таймер тикал)
+        setInterval(loadOrders, 1000);
+        loadOrders();
+        applyLang();
+    </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+/* === GLOBAL (ОБЩИЕ) === */
+:root {
+    --bg-color: #F2F3F5;
+    --text-main: #333;
+    --accent: #FFC107; /* Желтый */
+    --dark: #3A3A3C;
+    --gray: #E5E5EA;
+    --green: #27AE60;
+    --red: #EB5757;
+}
+
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    height: 100vh; /* На весь экран */
+    overflow: hidden; /* Убираем лишние скроллы у окна */
+}
+
+a { text-decoration: none; }
+
+/* === UI KIT (КНОПКИ) === */
+.btn-back {
+    background-color: var(--gray); color: #000;
+    padding: 8px 16px; border-radius: 20px;
+    font-weight: 600; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    border: none; cursor: pointer; transition: 0.2s;
+    width: fit-content; margin-bottom: 15px;
+}
+.btn-back:hover { background-color: #D1D1D6; }
+
+/* === 1. ГЛАВНАЯ (HOME) === */
+.home-layout { overflow-y: auto; display: flex; flex-direction: column; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.top-bar-center { display: flex; gap: 15px; }
+
+/* === 2. НАСТРОЙКИ (SETTINGS) === */
+.settings-layout { overflow-y: auto; } /* Разрешаем скролл */
+.settings-top { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; }
+.settings-container { padding: 0 40px 40px 40px; }
+.grid-row { display: flex; gap: 30px; flex-wrap: wrap; margin-top: 15px; }
+.setting-item { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 500; cursor: pointer; min-width: 150px; }
+.s-icon { width: 24px; height: 24px; }
+.lang-switch { background: #E0E0E0; border-radius: 20px; padding: 4px; display: flex; }
+.lang-btn { padding: 8px 20px; border-radius: 16px; border: none; cursor: pointer; font-weight: 700; }
+.lang-active { background: var(--dark); color: white; }
+.lang-inactive { background: transparent; color: #777; }
+
+/* === 3. КАССИР (CASHIER) - ЭТО ТО, ЧТО СЛОМАЛОСЬ === */
+.pos-container {
+    display: flex; /* <-- ВОТ ЭТО ДЕЛИТ ЭКРАН ПОПОЛАМ */
+    height: 100vh;
+    width: 100%;
+}
+
+/* Левая панель (Меню) */
+.left-panel {
+    flex: 2; /* Занимает 66% ширины */
+    background: #fff;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ddd;
+    overflow-y: hidden; /* Скролл только внутри меню */
+}
+
+/* Правая панель (Чек) */
+.right-panel {
+    flex: 1; /* Занимает 33% ширины */
+    background: #F9F9F9;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #eee;
+}
+
+/* Сетка товаров */
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); /* Авто-сетка */
+    gap: 15px;
+    overflow-y: auto; /* Скроллим товары */
+    padding-bottom: 20px;
+    flex-grow: 1;
+}
+
+.menu-item {
+    background: #fff; border: 1px solid #eee; border-radius: 15px;
+    padding: 15px; cursor: pointer; height: 90px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: 0.1s;
+}
+.menu-item:active { transform: scale(0.95); background: #fafafa; }
+.item-name { font-weight: 600; font-size: 15px; }
+.item-price { font-weight: 700; color: var(--green); }
+
+/* Табы категорий */
+.category-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+.tab-btn { padding: 10px 20px; border: 1px solid #eee; background: #fff; border-radius: 12px; font-weight: 600; cursor: pointer; }
+.tab-btn.active { background: var(--dark); color: #fff; }
+
+/* Поиск */
+.search-bar input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-top: 10px; box-sizing: border-box; }
+
+/* Чек */
+.order-list { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 10px; padding: 10px; margin: 15px 0; }
+.order-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f0f0f0; }
+
+.pay-button {
+    width: 100%; background: var(--dark); color: white;
+    padding: 15px; border: none; border-radius: 12px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+}
+
+/* === 4. БАРИСТА (BARISTA) === */
+.barista-layout { padding: 20px; display: flex; flex-direction: column; }
+.kanban-board { display: flex; gap: 20px; height: 100%; margin-top: 10px; overflow-x: auto; }
+.kanban-column { flex: 1; min-width: 300px; background: #fff; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.column-header { padding: 15px; text-align: center; font-weight: 800; background: var(--accent); color: #000; }
+.orders-list { flex-grow: 1; padding: 15px; overflow-y: auto; background: #FAFAFA; }
+.order-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.btn-action { width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; margin-top: 10px; }
+.btn-green { background: var(--green); }
+.btn-gray { background: #999; }
