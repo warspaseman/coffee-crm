@@ -2,6 +2,10 @@ from django.db import models, transaction
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 # --- 1. Поставщики и Ингредиенты ---
 class Supplier(models.Model):
@@ -20,7 +24,8 @@ class Ingredient(models.Model):
     is_milk = models.BooleanField(default=False, verbose_name="Это молоко (для замены)")
     min_limit = models.DecimalField(max_digits=10, decimal_places=3, default=0, verbose_name="Критический остаток")
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Основной поставщик")
-
+    reorder_sent = models.BooleanField(default=False, verbose_name="Заказ поставщику отправлен")
+    
     def __str__(self):
         return f"{self.name} ({self.amount} {self.unit})"
 
@@ -71,6 +76,7 @@ class SupplyItem(models.Model):
             
             # Добавляем новое количество
             self.ingredient.amount += self.quantity
+            self.ingredient.reorder_sent = False # Сбрасываем флаг заказа
             self.ingredient.save()
             
             super().save(*args, **kwargs)
@@ -118,19 +124,15 @@ class Modifier(models.Model):
 # --- 5. Заказы ---
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
+    # Статус по умолчанию 'pending' (В ожидании), чтобы видел Бариста
     status = models.CharField(max_length=20, default='pending') 
     is_completed = models.BooleanField(default=False)
-
-    @property
-    def total_price(self):
-        return sum(item.final_price for item in self.items.all())
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0) # Лучше хранить итог в базе
 
     @transaction.atomic
-    def finish_order(self):
-        """Списывает продукты со склада. Атомарная транзакция."""
-        if self.is_completed:
-            return
-
+    def deduct_ingredients(self):
+        """Списывает продукты и проверяет автозаказ (Официальное письмо)."""
+        
         # Decimal коэффициенты
         size_multipliers = {
             'S': Decimal('0.7'),
@@ -138,52 +140,113 @@ class Order(models.Model):
             'L': Decimal('1.3')
         }
 
-        # prefetch_related ускоряет работу, загружая рецепты и модификаторы сразу
+        # prefetch_related ускоряет работу
         order_items = self.items.select_related('menu_item').prefetch_related(
             'menu_item__recipes__ingredient', 
             'modifiers__ingredient'
         )
 
-        # 1. Этап проверки (хватает ли всего?)
+        # --- 1. ПРОВЕРКА (Хватает ли?) ---
         for item in order_items:
             multiplier = size_multipliers.get(item.size, Decimal('1.0'))
             
-            # Проверка рецепта
+            # Рецепты
             for recipe in item.menu_item.recipes.all():
                 needed = recipe.quantity_needed * multiplier * item.quantity
                 if recipe.ingredient.amount < needed:
                     raise ValidationError(f"Не хватает ингредиента: {recipe.ingredient.name}")
 
-            # Проверка модификаторов
+            # Модификаторы
             for mod in item.modifiers.all():
                 if mod.ingredient:
                     needed_mod = mod.quantity_needed * item.quantity
                     if mod.ingredient.amount < needed_mod:
                         raise ValidationError(f"Не хватает модификатора: {mod.ingredient.name}")
 
-        # 2. Этап списания (если проверка прошла)
+        # --- 2. СПИСАНИЕ И АВТОЗАКАЗ ---
         for item in order_items:
             multiplier = size_multipliers.get(item.size, Decimal('1.0'))
             
-            # Списание рецепта
+            # А) Списываем ингредиенты рецепта
             for recipe in item.menu_item.recipes.all():
                 needed = recipe.quantity_needed * multiplier * item.quantity
-                # Обновляем напрямую через F-expression для надежности
+                
+                # 1. Обновляем склад
                 Ingredient.objects.filter(pk=recipe.ingredient.pk).update(
                     amount=models.F('amount') - needed
                 )
+                
+                # 2. Перезагружаем ингредиент, чтобы увидеть актуальный остаток
+                ing = recipe.ingredient
+                ing.refresh_from_db()
 
-            # Списание модификаторов
+                # 3. ЛОГИКА ОТПРАВКИ ОФИЦИАЛЬНОГО ПИСЬМА
+                if ing.amount <= ing.min_limit and ing.supplier and not ing.reorder_sent:
+                    self._send_official_email(ing)
+
+            # Б) Списываем модификаторы (Та же логика)
             for mod in item.modifiers.all():
                 if mod.ingredient:
                     needed_mod = mod.quantity_needed * item.quantity
+                    
                     Ingredient.objects.filter(pk=mod.ingredient.pk).update(
                         amount=models.F('amount') - needed_mod
                     )
+                    
+                    ing = mod.ingredient
+                    ing.refresh_from_db()
+                    
+                    if ing.amount <= ing.min_limit and ing.supplier and not ing.reorder_sent:
+                        self._send_official_email(ing)
+        
+    def _send_official_email(self, ing):
+        """Вспомогательный метод для отправки красивого письма."""
+        try:
+            now = timezone.now()
+            deadline = now + timedelta(days=1) # Срок поставки: завтра
 
-        self.is_completed = True
-        self.status = 'completed'
-        self.save()
+            # Тема письма
+            subject = f"ЗАЯВКА НА ПОСТАВКУ №{ing.id}-{now.strftime('%d%m')} | {ing.name}"
+
+            # Тело письма (Официальный документ)
+            message = (
+                f"ЗАЯВКА НА ЗАКУПКУ ТОВАРА\n"
+                
+                f"ПОСТАВЩИК:  {ing.supplier.name}\n"
+                f"ДАТА:       {now.strftime('%d.%m.%Y %H:%M')}\n"
+                f"СТАТУС:     СРОЧНО\n"
+                
+                f"Уважаемые партнеры!\n\n"
+                f"Просим оформить поставку следующей позиции в связи с низким остатком на складе:\n\n"
+                f"ТОВАР:               {ing.name}\n"
+                f"ТЕКУЩИЙ ОСТАТОК:     {ing.amount} {ing.unit}\n"
+                f"КРИТИЧЕСКИЙ ЛИМИТ:   {ing.min_limit} {ing.unit}\n"
+                
+                f"ТРЕБОВАНИЯ К ПОСТАВКЕ:\n"
+                f"> Ожидаемая дата прибытия:  {deadline.strftime('%d.%m.%Y')} (до 12:00)\n"
+                f"> Адрес доставки:           Главный склад (Астана)\n"
+                f"> Контактное лицо:          Администратор\n\n"
+                f"Пожалуйста, подтвердите получение этого письма ответным сообщением.\n\n"
+                f"С уважением,\n"
+                f"Автоматическая система управления (Coffee CRM)"
+            )
+
+            print(f"📩 ОТПРАВКА ОФИЦИАЛЬНОГО ЗАКАЗА: {ing.name}")
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER if hasattr(settings, 'EMAIL_HOST_USER') else 'robot@coffee.com',
+                recipient_list=[ing.supplier.contact_info],
+                fail_silently=False,
+            )
+            
+            # Ставим галочку, чтобы не спамить
+            ing.reorder_sent = True
+            ing.save()
+            
+        except Exception as e:
+            print(f"Ошибка отправки письма: {e}")
 
 class OrderItem(models.Model):
     SIZE_CHOICES = [('S', 'S'), ('M', 'M'), ('L', 'L')]

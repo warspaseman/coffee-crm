@@ -24,11 +24,16 @@
         .settings-container { padding: 0 40px; }
         .section-title { color: #8899A6; margin-top: 30px; font-weight: 600; text-transform: uppercase; }
         .grid-row { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 15px; }
+        
+        /* Обновленный стиль для ссылок-кнопок */
+        .setting-link { text-decoration: none; color: inherit; }
         .setting-item { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 500; cursor: pointer; transition: 0.2s; }
-        .setting-item:hover { opacity: 0.7; }
+        .setting-item:hover { opacity: 0.7; transform: translateX(5px); } /* Добавил легкую анимацию */
+        
         .s-icon { width: 24px; height: 24px; }
         .icon-green { color: #27AE60; fill: #27AE60; }
         .icon-red { color: #EB5757; fill: #EB5757; }
+        .icon-blue { color: #2980b9; fill: #2980b9; } /* Новый цвет для аналитики */
     </style>
 </head>
 <body>
@@ -58,22 +63,43 @@
         <div class="grid-row">
             <div class="setting-item"><svg class="s-icon icon-green" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" fill="currentColor"/></svg> <span class="t-trans">Транзакции</span></div>
         </div>
+
+        <div class="section-title t-finance">Финансы</div>
+        <div class="grid-row">
+            <a href="{% url 'analytics' %}" class="setting-link">
+                <div class="setting-item">
+                    <svg class="s-icon icon-blue" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" fill="currentColor"/></svg> 
+                    <span class="t-analytics">Аналитика</span>
+                </div>
+            </a>
+        </div>
     </div>
 
     <script>
         const dict = {
-            'ru': { 'back': 'Назад', 'settings': 'Настройки', 'warehouse': 'Склад', 'supply': 'Поставки', 'stock': 'Остатки', 'writeoff': 'Списание', 'cash': 'Кассовая смена', 'trans': 'Транзакции' },
-            'en': { 'back': 'Back', 'settings': 'Settings', 'warehouse': 'Warehouse', 'supply': 'Supply', 'stock': 'Stock', 'writeoff': 'Write-off', 'cash': 'Shift', 'trans': 'Transactions' }
+            'ru': { 
+                'back': 'Назад', 'settings': 'Настройки', 
+                'warehouse': 'Склад', 'supply': 'Поставки', 'stock': 'Остатки', 'writeoff': 'Списание', 
+                'cash': 'Кассовая смена', 'trans': 'Транзакции',
+                'finance': 'Финансы', 'analytics': 'Аналитика и Отчеты' // Добавлено
+            },
+            'en': { 
+                'back': 'Back', 'settings': 'Settings', 
+                'warehouse': 'Warehouse', 'supply': 'Supply', 'stock': 'Stock', 'writeoff': 'Write-off', 
+                'cash': 'Shift', 'trans': 'Transactions',
+                'finance': 'Finance', 'analytics': 'Analytics & Reports' // Added
+            }
         };
 
         function changeLang(lang) {
-            localStorage.setItem('pos_lang', lang); // Сохраняем в память
+            localStorage.setItem('pos_lang', lang); 
             applyLang(lang);
         }
 
         function applyLang(lang) {
             document.querySelectorAll('[class^="t-"]').forEach(el => {
-                const key = el.className.split(' ')[0].replace('t-', '');
+                // Берем класс (t-back, t-settings...) и убираем приставку t-
+                const key = el.className.split(' ').find(cls => cls.startsWith('t-')).replace('t-', '');
                 if (dict[lang][key]) el.innerText = dict[lang][key];
             });
             

@@ -157,3 +157,19 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
 ]
+# settings.py
+
+# Указываем, что хотим отправлять через настоящий SMTP сервер Gmail
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# Ваша почта (ОТ КОГО будет письмо)
+EMAIL_HOST_USER = 'saparnursat727@gmail.com'
+# ВНИМАНИЕ: Сюда вставляем те 16 букв, которые дал Google (без пробелов)
+# НЕ ваш обычный пароль от входа!
+EMAIL_HOST_PASSWORD = 'bcuevdtmniandiwq' 
+
+# Почта администратора (куда приходят копии ошибок)
