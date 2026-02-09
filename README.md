@@ -133,7 +133,8 @@ Roadmap
 
 License
 This project is licensed under the MIT License.
-
+<div align="center">
 Developed by Nursat Sapar and Suiinbaiissaui Kabzakiruly
 
 Astana IT University | Cybersecurity Major
+</div>
