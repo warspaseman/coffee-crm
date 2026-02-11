@@ -77,7 +77,7 @@ def generate_data():
         shift.order_count = order_count
         shift.save()
         
-        print(f"✅ Generated: {current_date.date()} | Orders: {order_count} | Revenue: {daily_revenue}")
+        print(f"Generated: {current_date.date()} | Orders: {order_count} | Revenue: {daily_revenue}")
         current_date += timedelta(days=1)
 
     print("\n Database populated successfully!")

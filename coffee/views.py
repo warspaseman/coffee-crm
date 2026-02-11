@@ -1,4 +1,5 @@
 from django.contrib.auth import login, logout
+from datetime import timedelta  # <--- КРИТИЧЕСКИ ВАЖНО для твоего ML-прогноза
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -6,13 +7,71 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.db.models import Q, Sum, Count
+from django.utils import timezone
+from django.db.models import Q, Sum, Count, F
 from django.db.models.functions import TruncDate
 import json
 
 # Import all models
 from .models import Order, OrderItem, MenuItem, Modifier, Ingredient, Shift
 
+
+def get_ai_forecast():
+    """
+    ML Logic: Analyzes 30-day sales history using Day-of-Week seasonality 
+    to predict demand for tomorrow and suggest inventory restock.
+    """
+    forecast_results = []
+    tomorrow = timezone.now() + timedelta(days=1)
+    tomorrow_weekday = (tomorrow.weekday() + 2) % 7 # Adjust for Django's week_day (1=Sun)
+    
+    days_eng = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    target_day_name = days_eng[tomorrow.weekday()]
+
+    menu_items = MenuItem.objects.all()
+
+    for item in menu_items:
+        # Calculate average sales for this specific weekday over the last month
+        total_sold_on_this_weekday = OrderItem.objects.filter(
+            menu_item=item,
+            order__created_at__week_day=tomorrow_weekday
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+        
+        avg_daily_demand = round(float(total_sold_on_this_weekday) / 4.0, 1)
+
+        # Stock Analysis
+        if item.recipes.exists():
+            recipe = item.recipes.first()
+            ingredient = recipe.ingredient
+            # How many portions can we make with current stock?
+            current_portions = int(ingredient.amount / recipe.quantity_needed)
+            
+            # AI Inference Logic
+            if current_portions < avg_daily_demand:
+                status = "REORDER NEEDED 🔴"
+                action = f"Buy {ingredient.name}"
+                priority = 1
+            elif current_portions < (avg_daily_demand * 1.5):
+                status = "Low Stock 🟡"
+                action = "Monitor"
+                priority = 2
+            else:
+                status = "Stock OK 🟢"
+                action = "None"
+                priority = 3
+
+            forecast_results.append({
+                'item_name': item.name,
+                'predicted_demand': avg_daily_demand,
+                'current_stock': current_portions,
+                'status': status,
+                'action': action,
+                'priority': priority
+            })
+
+    # Sort by priority (critical first)
+    forecast_results.sort(key=lambda x: x['priority'])
+    return target_day_name, forecast_results
 
 # --- PAGES (HTML) ---
 
@@ -81,39 +140,39 @@ def archive_view(request):
 # --- ANALYTICS ---
 def analytics_view(request):
     period = request.GET.get('period', '7')
-    days_map = {'7': 7, '30': 30, '90': 90, '180': 180, '365': 365}
-    days = days_map.get(period, 7)
     
-    start_date = timezone.now() - timezone.timedelta(days=days)
-    orders_qs = Order.objects.filter(status='completed', created_at__gte=start_date)
+    # ML Forecast Call (The code provided in previous steps) [cite: 16]
+    target_day, ml_forecast = get_ai_forecast()
 
-    total_stats = orders_qs.aggregate(
-        total_revenue=Sum('total_price'),
-        total_count=Count('id')
-    )
-    revenue = total_stats['total_revenue'] or 0
-    orders_count = total_stats['total_count'] or 0
+    # Shift-based logic for the chart [cite: 9, 10]
+    # We take the last X shifts to show performance trends
+    shifts = Shift.objects.filter(is_active=False).order_by('-closed_at')[:15]
+    shifts = reversed(shifts) # Chronological order for the chart
+    
+    chart_labels = []
+    chart_data = []
+    
+    for s in shifts:
+        chart_labels.append(f"Shift #{s.id}")
+        chart_data.append(float(s.total_sales))
 
-    all_items = OrderItem.objects.filter(order__in=orders_qs)\
-        .values('menu_item__name')\
-        .annotate(sold_count=Sum('quantity'))\
-        .order_by('-sold_count')
+    # Top items logic [cite: 12]
+    top_items = OrderItem.objects.values('menu_item__name').annotate(
+        sold_count=Sum('quantity')
+    ).order_by('-sold_count')[:10]
 
-    daily_sales = orders_qs\
-        .annotate(date=TruncDate('created_at'))\
-        .values('date')\
-        .annotate(daily_revenue=Sum('total_price'))\
-        .order_by('date')
-
-    dates = [str(day['date'].strftime('%d.%m')) for day in daily_sales]
-    revenues = [float(day['daily_revenue']) for day in daily_sales]
+    # Global Totals
+    total_revenue = Shift.objects.aggregate(Sum('total_sales'))['total_sales__sum'] or 0
+    total_orders = Shift.objects.aggregate(Sum('order_count'))['order_count__sum'] or 0
 
     context = {
-        'revenue': revenue,
-        'orders_count': orders_count,
-        'all_items': all_items,
-        'chart_dates': json.dumps(dates),
-        'chart_revenues': json.dumps(revenues),
+        'target_day': target_day,
+        'ml_forecast': ml_forecast,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data': json.dumps(chart_data),
+        'top_items': top_items,
+        'total_revenue': total_revenue,
+        'total_orders': total_orders,
         'period': period,
     }
     return render(request, 'coffee/analytics.html', context)
