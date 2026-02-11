@@ -3,9 +3,13 @@ from django.core.exceptions import ValidationError
 from django.contrib import messages
 from .models import (
     Ingredient, MenuItem, Recipe, Order, OrderItem, 
-    Modifier, Supplier, Supply, SupplyItem
+    Modifier, Supplier, Supply, SupplyItem, Shift
 )
-
+@admin.register(Shift)
+class ShiftAdmin(admin.ModelAdmin):
+    list_display = ('id', 'opened_at', 'is_active', 'total_sales', 'order_count')
+    list_filter = ('is_active', 'opened_at')
+    ordering = ('-opened_at',)
 # --- 1. Ингредиенты и Поставщики ---
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):

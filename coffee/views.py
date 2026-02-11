@@ -10,7 +10,7 @@ from django.db.models import Q, Sum, Count
 from django.db.models.functions import TruncDate
 import json
 # Импортируем все модели
-from .models import Order, OrderItem, MenuItem, Modifier, Ingredient
+from .models import Order, OrderItem, MenuItem, Modifier, Ingredient, Shift
 
 
 # --- СТРАНИЦЫ (HTML) ---
@@ -36,15 +36,49 @@ def cashier_view(request):
 def barista_view(request):
     return render(request, 'coffee/barista.html')
 
+# coffee/views.py
+
 def settings_view(request):
-    return render(request, 'coffee/settings.html')
+    active_shift = Shift.objects.filter(is_active=True).first()
+    
+    context = {}
+    if active_shift:
+        # Берем только завершенные заказы этой смены
+        # Важно: убедись, что при создании заказа ты ставишь status='completed'
+        orders = active_shift.orders.filter(status='completed')
+        
+        # Считаем сумму
+        current_total = orders.aggregate(Sum('total_price'))['total_price__sum'] or 0
+        order_count = orders.count()
+        
+        context = {
+            'shift_status': 'open',
+            'shift_id': active_shift.id,
+            'current_total': current_total,
+            'order_count': order_count
+        }
+    else:
+        context = {'shift_status': 'closed'}
+
+    return render(request, 'coffee/settings.html', context)
 
 def archive_view(request):
-    orders = Order.objects.filter(
-        status='completed',
-        created_at__gte=timezone.now() - timezone.timedelta(days=1)
-    ).order_by('-created_at')
-    return render(request, 'coffee/archive.html', {'orders': orders})
+    # 1. Ищем активную смену
+    active_shift = Shift.objects.filter(is_active=True).first()
+    
+    if active_shift:
+        # 2. Если смена есть — берем заказы ТОЛЬКО ЭТОЙ смены
+        orders = Order.objects.filter(shift=active_shift).order_by('-created_at')
+        shift_status = 'open'
+    else:
+        # 3. Если смены нет — показываем пустоту (или можно показать последнюю закрытую)
+        orders = []
+        shift_status = 'closed'
+
+    return render(request, 'coffee/archive.html', {
+        'orders': orders,
+        'shift_status': shift_status
+    })
 
 # --- АНАЛИТИКА (Код друга сохранен) ---
 def analytics_view(request):
@@ -144,49 +178,73 @@ def api_create_order(request):
         try:
             data = json.loads(request.body)
             items = data.get('items', [])
-            if not items: return JsonResponse({'success': False, 'error': 'Пусто'})
-
-            order = Order.objects.create(status='pending') 
             
+            if not items:
+                return JsonResponse({'success': False, 'error': 'Пустой заказ'})
+
+            # === 1. ИЩЕМ ОТКРЫТУЮ СМЕНУ ===
+            active_shift = Shift.objects.filter(is_active=True).first()
+            if not active_shift:
+                return JsonResponse({'success': False, 'error': 'Смена закрыта! Откройте смену в настройках.'})
+
+            # Считаем общую сумму
+            total_price = 0
+            for item in items:
+                # ... (твой код подсчета цены, если он там есть) ...
+                # Если ты считаешь цену на фронтенде, то бери из items, 
+                # но правильнее пересчитать на бэке. 
+                # Для простоты допустим, мы считаем сумму позже или берем из присланного.
+                pass 
+            
+            # (Упрощенно: пересчет цены лучше делать тут, но оставим как было у тебя)
+            
+            # === 2. СОЗДАЕМ ЗАКАЗ С ПРИВЯЗКОЙ К СМЕНЕ ===
+            order = Order.objects.create(
+                total_price=0, # Временно 0, обновим ниже
+                status='pending', # Сразу считаем выполненным (или 'pending')
+                shift=active_shift  # <--- ВОТ ЭТО САМОЕ ГЛАВНОЕ!
+            )
+
+            # === 3. СОХРАНЯЕМ ТОВАРЫ ===
+            final_total = 0
             for item_data in items:
-                try:
-                    clean_name = item_data.get('realName', item_data.get('name'))
-                    menu_item = MenuItem.objects.get(name=clean_name)
-                    
-                    # ПОЛУЧАЕМ РАЗМЕР ОТ КАССИРА (по умолчанию M)
-                    chosen_size = item_data.get('size', 'M')
-                    
-                    order_item = OrderItem.objects.create(
-                        order=order, 
-                        menu_item=menu_item, 
-                        quantity=1, 
-                        size=chosen_size # <--- ВСТАВЛЯЕМ ВЫБРАННЫЙ РАЗМЕР
-                    )
-                    
-                    mod_ids = item_data.get('modifiers', [])
-                    if mod_ids:
-                        order_item.modifiers.set(mod_ids)
-                        order_item.save()
+                menu_item = MenuItem.objects.get(name=item_data['name'])
+                
+                # Логика цены (база + модификаторы)
+                item_price = menu_item.price 
+                # (Тут должна быть твоя логика добавления цены модификаторов)
+                
+                # Создаем OrderItem
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    menu_item=menu_item,
+                    quantity=1,
+                    price=item_price # Сохраняем цену конкретной позиции
+                )
+                
+                # Если есть модификаторы
+                if 'modifiers' in item_data:
+                    for mod_id in item_data['modifiers']:
+                        mod = Modifier.objects.get(id=mod_id)
+                        order_item.modifiers.add(mod)
+                        item_price += mod.price # Добавляем к цене
+                
+                # Обновляем цену позиции с учетом добавок
+                order_item.price = item_price
+                order_item.save()
+                
+                final_total += item_price
 
-                except MenuItem.DoesNotExist:
-                    continue 
-            
-            # Пересчет и списание
-            total = sum(item.final_price for item in order.items.all())
-            order.total_price = total
+            # Обновляем итоговую цену заказа
+            order.total_price = final_total
             order.save()
 
-            try:
-                if hasattr(order, 'finish_order'): order.finish_order()
-                elif hasattr(order, 'deduct_ingredients'): order.deduct_ingredients()
-            except ValidationError as e:
-                print(f"Ошибка склада: {e}")
-
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'order_id': order.id})
+        
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False}) 
 
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
 # 4. API Меню
 def menu_api(request):
     items = MenuItem.objects.all()
@@ -222,3 +280,35 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+@csrf_exempt
+def api_manage_shift(request, action):
+    if request.method == 'POST':
+        if action == 'open':
+            # Проверяем, нет ли уже открытой
+            if Shift.objects.filter(is_active=True).exists():
+                return JsonResponse({'success': False, 'error': 'Смена уже открыта!'})
+            
+            Shift.objects.create(is_active=True)
+            return JsonResponse({'success': True})
+
+        elif action == 'close':
+            try:
+                shift = Shift.objects.get(is_active=True)
+                # Считаем итоги только по завершенным заказам
+                orders = shift.orders.filter(status='completed') 
+                total = orders.aggregate(Sum('total_price'))['total_price__sum'] or 0
+                count = orders.count()
+                
+                # Закрываем смену
+                shift.total_sales = total
+                shift.order_count = count
+                shift.is_active = False
+                shift.closed_at = timezone.now()
+                shift.save()
+                
+                return JsonResponse({'success': True, 'summary': {'total': total, 'count': count}})
+            except Shift.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Нет открытой смены!'})
+                
+    return JsonResponse({'success': False, 'error': 'Неверный метод'})

@@ -3,113 +3,175 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Settings</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>Настройки</title>
     <style>
-        body { background-color: #F2F3F5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .settings-top { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #F3F4F6; padding: 40px; }
         
-        /* КНОПКА НАЗАД */
-        .btn-back {
-            background-color: #E5E5EA; color: #000; padding: 10px 20px; border-radius: 20px;
-            text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; border: none; transition: 0.2s;
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { margin-bottom: 30px; }
+        .title { font-size: 28px; font-weight: 800; color: #111; }
+        .subtitle { color: #6B7280; margin-top: 5px; }
+
+        /* === КАРТОЧКА СМЕНЫ (ГЛАВНАЯ) === */
+        .shift-card {
+            background: #fff; padding: 30px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid #E5E7EB;
         }
-        .btn-back:hover { background-color: #D1D1D6; }
 
-        .lang-switch { background: #E0E0E0; border-radius: 20px; padding: 4px; display: flex; }
-        .lang-btn { padding: 8px 20px; border-radius: 16px; border: none; cursor: pointer; font-weight: 700; transition: 0.2s; }
-        .lang-active { background: #3A3A3C; color: white; }
-        .lang-inactive { background: transparent; color: #777; }
+        .sc-left h2 { margin: 0 0 10px 0; font-size: 22px; }
+        .sc-status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #6B7280; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.green { background: #10B981; }
+        .dot.red { background: #EF4444; }
 
-        .settings-container { padding: 0 40px; }
-        .section-title { color: #8899A6; margin-top: 30px; font-weight: 600; text-transform: uppercase; }
-        .grid-row { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 15px; }
+        .sc-stats { display: flex; gap: 40px; margin-top: 15px; }
+        .stat-val { font-size: 24px; font-weight: 800; color: #111; }
+        .stat-lbl { font-size: 12px; color: #9CA3AF; text-transform: uppercase; font-weight: 700; }
+
+        /* КНОПКИ СМЕНЫ */
+        .btn-shift {
+            padding: 15px 30px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .btn-open { background: #10B981; color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+        .btn-open:hover { background: #059669; transform: translateY(-2px); }
+
+        .btn-close { background: #FEE2E2; color: #EF4444; }
+        .btn-close:hover { background: #FECACA; }
+
+        /* === СЕТКА ОСТАЛЬНЫХ НАСТРОЕК === */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+        .card {
+            background: #fff; padding: 25px; border-radius: 16px;
+            text-decoration: none; color: inherit; transition: all 0.2s;
+            border: 1px solid #E5E7EB; display: flex; flex-direction: column;
+            justify-content: space-between; height: 140px;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-color: #D1D5DB; }
+
+        .card-icon { 
+            width: 50px; height: 50px; background: #F3F4F6; border-radius: 12px; 
+            display: flex; align-items: center; justify-content: center; margin-bottom: 15px;
+            color: #111;
+        }
+        .card-title { font-size: 18px; font-weight: 700; color: #1F2937; }
+        .card-desc { font-size: 13px; color: #6B7280; margin-top: 5px; }
         
-        /* Обновленный стиль для ссылок-кнопок */
-        .setting-link { text-decoration: none; color: inherit; }
-        .setting-item { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 500; cursor: pointer; transition: 0.2s; }
-        .setting-item:hover { opacity: 0.7; transform: translateX(5px); } /* Добавил легкую анимацию */
-        
-        .s-icon { width: 24px; height: 24px; }
-        .icon-green { color: #27AE60; fill: #27AE60; }
-        .icon-red { color: #EB5757; fill: #EB5757; }
-        .icon-blue { color: #2980b9; fill: #2980b9; } /* Новый цвет для аналитики */
+        .c-blue .card-icon { background: #E0F2FE; color: #0284C7; }
+        .c-purple .card-icon { background: #F3E8FF; color: #9333EA; }
+
     </style>
 </head>
 <body>
 
-    <div class="settings-top">
-        <a href="{% url 'home' %}" class="btn-back">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            <span class="t-back">Назад</span>
-        </a>
-        <div class="lang-switch">
-            <button class="lang-btn" id="btn_ru" onclick="changeLang('ru')">Русский</button>
-            <button class="lang-btn" id="btn_en" onclick="changeLang('en')">English</button>
-        </div>
-    </div>
-
-    <div class="settings-container">
-        <h1 style="margin: 0; font-size: 36px;" class="t-settings">Настройки</h1>
-
-        <div class="section-title t-warehouse">Управление складом</div>
-        <div class="grid-row">
-            <div class="setting-item"><svg class="s-icon icon-green" viewBox="0 0 24 24"><path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" fill="currentColor"/></svg> <span class="t-supply">Поставки</span></div>
-            <div class="setting-item"><svg class="s-icon icon-green" viewBox="0 0 24 24"><path d="M12 2L4 5V11L12 14L20 11V5L12 2Z" fill="currentColor"/><path d="M4 13L12 16L20 13V19L12 22L4 19V13Z" fill="currentColor" opacity="0.5"/></svg> <span class="t-stock">Остатки</span></div>
-            <div class="setting-item"><svg class="s-icon icon-red" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg> <span class="t-writeoff">Списание</span></div>
+    <div class="container">
+        <div class="header">
+            <div class="title">Панель управления</div>
+            <div class="subtitle">Управление сменой и складом</div>
         </div>
 
-        <div class="section-title t-cash">Кассовая смена</div>
-        <div class="grid-row">
-            <div class="setting-item"><svg class="s-icon icon-green" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" fill="currentColor"/></svg> <span class="t-trans">Транзакции</span></div>
+        <div class="shift-card">
+            <div class="sc-left">
+                {% if shift_status == 'open' %}
+                    <h2>Смена #{{ shift_id }} открыта</h2>
+                    <div class="sc-status"><span class="dot green"></span> Работаем</div>
+                    
+                    <div class="sc-stats">
+                        <div>
+                            <div class="stat-lbl">Выручка</div>
+                            <div class="stat-val">{{ current_total|floatformat:0 }} ₸</div>
+                        </div>
+                        <div>
+                            <div class="stat-lbl">Чеков</div>
+                            <div class="stat-val">{{ order_count }}</div>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2>Смена закрыта</h2>
+                    <div class="sc-status"><span class="dot red"></span> Касса не работает</div>
+                    <p style="color:#9CA3AF; margin-top:10px; font-size:14px;">Откройте смену, чтобы начать принимать заказы.</p>
+                {% endif %}
+            </div>
+
+            <div class="sc-right">
+                {% if shift_status == 'open' %}
+                    <button class="btn-shift btn-close" onclick="manageShift('close')">
+                        Закрыть смену 🔒
+                    </button>
+                {% else %}
+                    <button class="btn-shift btn-open" onclick="manageShift('open')">
+                        Открыть смену 🚀
+                    </button>
+                {% endif %}
+            </div>
         </div>
 
-        <div class="section-title t-finance">Финансы</div>
-        <div class="grid-row">
-            <a href="{% url 'analytics' %}" class="setting-link">
-                <div class="setting-item">
-                    <svg class="s-icon icon-blue" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" fill="currentColor"/></svg> 
-                    <span class="t-analytics">Аналитика</span>
+        <div class="grid">
+            
+            <a href="{% url 'analytics' %}" class="card c-blue">
+                <div>
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">Аналитика</div>
+                    <div class="card-desc">Графики продаж и отчеты</div>
                 </div>
             </a>
+
+            <a href="/admin/" target="_blank" class="card c-purple">
+                <div>
+                    <div class="card-icon">📦</div>
+                    <div class="card-title">Склад и Меню</div>
+                    <div class="card-desc">Добавление товаров, инвентаризация</div>
+                </div>
+            </a>
+
         </div>
     </div>
 
     <script>
-        const dict = {
-            'ru': { 
-                'back': 'Назад', 'settings': 'Настройки', 
-                'warehouse': 'Склад', 'supply': 'Поставки', 'stock': 'Остатки', 'writeoff': 'Списание', 
-                'cash': 'Кассовая смена', 'trans': 'Транзакции',
-                'finance': 'Финансы', 'analytics': 'Аналитика и Отчеты' // Добавлено
-            },
-            'en': { 
-                'back': 'Back', 'settings': 'Settings', 
-                'warehouse': 'Warehouse', 'supply': 'Supply', 'stock': 'Stock', 'writeoff': 'Write-off', 
-                'cash': 'Shift', 'trans': 'Transactions',
-                'finance': 'Finance', 'analytics': 'Analytics & Reports' // Added
-            }
-        };
+        function manageShift(action) {
+            let confirmMsg = action === 'open' ? 'Открыть новую смену?' : 'Закрыть смену и снять Z-отчет?';
+            if (!confirm(confirmMsg)) return;
 
-        function changeLang(lang) {
-            localStorage.setItem('pos_lang', lang); 
-            applyLang(lang);
-        }
-
-        function applyLang(lang) {
-            document.querySelectorAll('[class^="t-"]').forEach(el => {
-                // Берем класс (t-back, t-settings...) и убираем приставку t-
-                const key = el.className.split(' ').find(cls => cls.startsWith('t-')).replace('t-', '');
-                if (dict[lang][key]) el.innerText = dict[lang][key];
+            // Используем тот же API, что и раньше
+            fetch(`/api/shift/${action}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (action === 'close') {
+                        alert(`Смена закрыта!\n💰 Итого: ${data.summary.total} ₸`);
+                    } else {
+                        alert("Смена открыта! Удачной работы!");
+                    }
+                    location.reload(); // Перезагружаем страницу, чтобы обновить статус
+                } else {
+                    alert("Ошибка: " + data.error);
+                }
             });
-            
-            // Кнопки
-            document.getElementById('btn_ru').className = lang === 'ru' ? 'lang-btn lang-active' : 'lang-btn lang-inactive';
-            document.getElementById('btn_en').className = lang === 'en' ? 'lang-btn lang-active' : 'lang-btn lang-inactive';
         }
 
-        // При загрузке страницы читаем память
-        applyLang(localStorage.getItem('pos_lang') || 'ru');
+        // Хелпер для Cookie (стандартный Django)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
     </script>
+
 </body>
 </html>

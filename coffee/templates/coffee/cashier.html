@@ -182,10 +182,11 @@
         /* === СПИСОК МОДИФИКАТОРОВ (ПЛИТКИ) === */
         .mod-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Авто-сетка */
-            gap: 12px;
+            /* Делаем плитки чуть шире (110px), чтобы текст влезал в одну строку */
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 8px; /* Уменьшил расстояние между плитками */
             overflow-y: auto;
-            padding: 5px; margin-bottom: 20px;
+            padding: 2px; margin-bottom: 20px;
         }
         
         /* ЗАГОЛОВКИ ГРУПП */
@@ -198,25 +199,32 @@
         /* ПЛИТКА */
         .mod-item {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; padding: 12px;
-            border: 2px solid #E5E7EB; border-radius: 16px; background: #fff;
-            cursor: pointer; transition: all 0.15s ease-in-out; position: relative;
-            min-height: 70px;
+            text-align: center; 
+            padding: 8px 4px; /* Маленькие отступы внутри */
+            border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; /* Бордер тоньше */
+            cursor: pointer; transition: all 0.1s ease-in-out; position: relative;
+            min-height: 48px; /* <-- ВОТ ГЛАВНОЕ: Теперь они не высокие */
         }
         /* Скрываем стандартный чекбокс */
         .mod-item input { display: none; }
 
-        .mod-item:hover { border-color: #D1D5DB; transform: translateY(-2px); }
+        .mod-item:hover { border-color: #9CA3AF; background: #F9FAFB; }
         
         /* Стиль ВЫБРАННОЙ плитки */
         .mod-item.selected {
             border-color: #059669; background: #ECFDF5;
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+            box-shadow: 0 2px 5px rgba(5, 150, 105, 0.1);
         }
         
         /* Текст в плитке */
-        .mod-item span:nth-of-type(1) { font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 4px; line-height: 1.2; }
-        .mod-item span:nth-of-type(2) { font-weight: 700; color: #059669; font-size: 12px; }
+        .mod-item span:nth-of-type(1) { 
+            font-weight: 600; font-size: 13px; color: #374151; 
+            line-height: 1.1; margin-bottom: 2px; 
+        }
+        /* Текст цены */
+        .mod-item span:nth-of-type(2) { 
+            font-weight: 700; color: #059669; font-size: 11px; 
+        }
 
         /* Кнопки действий */
         .modal-actions { display: flex; gap: 10px; }
@@ -266,7 +274,16 @@
             <div class="menu-grid" id="menu-grid">
                 {% for item in products %}
                 <div class="menu-item" 
-                     onclick="addToCart('{{ item.name }}', {{ item.price|stringformat:'d' }}, {% if item.is_sized %}true{% else %}false{% endif %})" 
+                     onclick="selectItem(this)"
+                     data-name="{{ item.name|escapejs }}"
+                     data-price="{{ item.price|stringformat:'d' }}"
+                     data-sized="{{ item.is_sized|yesno:'true,false' }}"
+                     
+                     data-milk="{{ item.has_milk_mods|yesno:'true,false' }}"
+                     data-syrup="{{ item.has_syrup_mods|yesno:'true,false' }}"
+                     data-ice="{{ item.has_ice_mods|yesno:'true,false' }}"
+                     data-other="{{ item.has_other_mods|yesno:'true,false' }}"
+                     
                      data-category="{{ item.category }}">
                     
                     <div class="item-name">{{ item.name }}</div>
@@ -274,37 +291,18 @@
                     
                     {% if item.category == 'coffee' %}
                         <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3z"/></svg>
-                    
-                    {% elif item.category == 'tea' %}
-                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2z"/></svg>
-                    
-                    {% elif item.category == 'cold' %}
-                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.06 22.99h1.66c.84 0 1.53-.64 1.6-1.48L22.95 9.08a.99.99 0 0 0-.74-1.07l-1.07-.26L21.8 5.09l1.93.48a1 1 0 0 0 1.21-.76l.24-1a1 1 0 0 0-.75-1.21l-7.3-1.83a1 1 0 0 0-1.21.76l-.24 1a1 1 0 0 0 .76 1.21l1.93.48-.66 2.65-11.63-2.9.27-1.11a1.004 1.004 0 0 0-1.22-.76L4.14 2.3A1 1 0 0 0 2.92 3.52l.24 1A.996.996 0 0 0 4.38 5.3l1.93.48L5.59 9c-.53.13-.88.66-.75 1.2l3.43 14.28c.17.7.8 1.18 1.52 1.18h8.27v-2.67z"/></svg>
-
                     {% elif item.category == 'pastry' %}
                         <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M22 10v9c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-9h20z"/></svg>
-                    
-                    {% elif item.category == 'bowl' %}
-                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M2 12c0 3.2 2.1 5.9 5 6.7V22h10v-3.3c2.9-.8 5-3.5 5-6.7H2zm9-6c1.6 0 3-1.4 3-3h-2c0 1-.6 1.9-1.5 2.5C10.1 5.2 10 5.1 10 5H8c0 .3.1.6.2.9C7.4 7.2 7 8.5 7 10h2c0-1.1.9-2 2-2z"/></svg>
-                    
+                    {% elif item.category == 'cold' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.06 22.99h1.66c.84 0 1.53-.64 1.6-1.48L22.95 9.08a.99.99 0 0 0-.74-1.07l-1.07-.26L21.8 5.09l1.93.48a1 1 0 0 0 1.21-.76l.24-1a1 1 0 0 0-.75-1.21l-7.3-1.83a1 1 0 0 0-1.21.76l-.24 1a1 1 0 0 0 .76 1.21l1.93.48-.66 2.65-11.63-2.9.27-1.11a1.004 1.004 0 0 0-1.22-.76L4.14 2.3A1 1 0 0 0 2.92 3.52l.24 1A.996.996 0 0 0 4.38 5.3l1.93.48L5.59 9c-.53.13-.88.66-.75 1.2l3.43 14.28c.17.7.8 1.18 1.52 1.18h8.27v-2.67z"/></svg>
                     {% else %}
                         <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
                     {% endif %}
-
                 </div>
                 {% empty %}
-                    <div style="padding:20px; color:#999; grid-column: 1/-1; text-align:center;">
-                        Меню пустое. Добавь товары в Админке!
-                    </div>
+                    <div style="grid-column: 1/-1; text-align: center; color: #999;">Нет товаров</div>
                 {% endfor %}
             </div>
-
-                <div class="menu-item" onclick="addToCart('Чай', 600)" data-category="other">
-                    <div class="item-name">Чай</div><div class="item-price">600 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2z"/></svg>
-                </div>
-            </div>
-
         </div>
 
     </div>
@@ -335,246 +333,304 @@
         </div>
     </div>
 <script>
-        // === ДАННЫЕ ===
-        // Если вдруг JSON пустой, ставим пустой массив, чтобы не было ошибки
-        const modifiersDataElement = document.getElementById('modifiers-data');
-        const allModifiers = modifiersDataElement ? JSON.parse(modifiersDataElement.textContent) : [];
+    // === ДАННЫЕ ===
+    const modifiersDataElement = document.getElementById('modifiers-data');
+    const allModifiers = modifiersDataElement ? JSON.parse(modifiersDataElement.textContent) : [];
+    
+    let cart = [];
+    
+    // Переменные текущего выбора
+    let currentItemName = null; 
+    let currentItemBasePrice = 0;
+    let currentSize = 'M';        
+    let currentSizeMult = 1.0;
+    
+    // Глобальные настройки (по умолчанию все выключено)
+    let currentPermissions = { milk: false, syrup: false, ice: false, other: false };
+
+    // === 1. ГЛАВНАЯ ФУНКЦИЯ КЛИКА ===
+    function selectItem(element) {
+        const ds = element.dataset;
         
-        const dict = { 'ru': { 'sent': 'Заказ отправлен!' }, 'en': { 'sent': 'Order sent!' } };
-        let cart = [];
+        const name = ds.name;
+        const price = ds.price;
+        const hasSizes = (ds.sized === 'true');
         
-        // Переменные текущего выбора
-        let currentItemName = null; 
-        let currentItemBasePrice = 0;
-        let currentSize = 'M';        
-        let currentSizeMult = 1.0;
+        // Читаем настройки из data-атрибутов
+        // Важно: здесь мы собираем их в ОДИН объект
+        const permissions = {
+            milk: (ds.milk === 'true'),
+            syrup: (ds.syrup === 'true'),
+            ice: (ds.ice === 'true'),
+            other: (ds.other === 'true')
+        };
 
-        // === 1. ГЛАВНАЯ ФУНКЦИЯ ФИЛЬТРАЦИИ (ИСПРАВЛЕННАЯ) ===
-        function filterMenu(category) {
-            // 1. Управляем кнопками (визуал)
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(btn => {
-                btn.classList.remove('active');
-                // Ищем кнопку, у которой в onclick написано имя нашей категории
-                // Это работает и при клике, и при автозапуске
-                if (btn.getAttribute('onclick').includes("'" + category + "'")) {
-                    btn.classList.add('active');
-                }
-            });
+        // Лог для проверки (жми F12 -> Console)
+        console.log(`Клик по: ${name}`);
+        console.log('Разрешения:', permissions);
 
-            // 2. Управляем товарами (скрываем/показываем)
-            const items = document.querySelectorAll('.menu-item');
-            items.forEach(item => {
-                if(item.dataset.category === category) {
-                    item.style.display = 'flex'; // Показываем
-                } else {
-                    item.style.display = 'none'; // Скрываем
-                }
-            });
-        }
+        // Передаем этот объект дальше
+        addToCart(name, price, hasSizes, permissions);
+    }
 
-        // === 2. АВТОЗАПУСК ПРИ ВХОДЕ ===
-        document.addEventListener("DOMContentLoaded", function() {
-            // Сразу выбираем кофе, как только страница загрузилась
-            filterMenu('coffee');
-        });
+    // === 2. ОТКРЫТИЕ ОКНА ===
+    // ВНИМАНИЕ: Здесь ровно 4 аргумента. Последний - permissions.
+    // === 3. ОТКРЫТИЕ ОКНА (УМНАЯ ВЕРСИЯ) ===
+    function addToCart(name, price, hasSizes, permissions) {
+        currentItemName = name;
+        currentItemBasePrice = parseInt(price);
+        currentPermissions = permissions || { milk: false, syrup: false, ice: false, other: false };
 
-        // === 3. ОТКРЫТИЕ ОКНА МОДИФИКАТОРОВ ===
-        function addToCart(name, price, hasSizes) {
-            currentItemName = name;
-            currentItemBasePrice = parseInt(price);
-            
-            const sizeBlock = document.getElementById('size-block');
+        // Проверяем: есть ли хоть одна опция для выбора?
+        const hasOptions = hasSizes || 
+                           currentPermissions.milk || 
+                           currentPermissions.syrup || 
+                           currentPermissions.ice || 
+                           currentPermissions.other;
 
-            if (hasSizes) {
-                sizeBlock.style.display = 'flex';
-                selectSize('M', 1.0); 
-            } else {
-                sizeBlock.style.display = 'none';
-                currentSize = 'M'; 
-                currentSizeMult = 1.0;
-            }
-            
-            document.getElementById('modal-modifiers').style.display = 'flex';
-            document.getElementById('modal-item-name').innerText = name;
-            
-            renderModifiersList();
-            updateModalTotal();
-        }
-
-        // === 4. ЛОГИКА РАЗМЕРОВ ===
-        function selectSize(size, multiplier) {
-            currentSize = size;
-            currentSizeMult = multiplier;
-
-            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
-            if(size === 'S') document.getElementById('btn-size-s').classList.add('active');
-            if(size === 'M') document.getElementById('btn-size-m').classList.add('active');
-            if(size === 'L') document.getElementById('btn-size-l').classList.add('active');
-
-            updateModalTotal();
-        }
-
-        // === 5. ОТРИСОВКА МОДИФИКАТОРОВ ===
-        function renderModifiersList() {
-            const container = document.getElementById('modal-list-container');
-            container.innerHTML = '';
-
-            const groups = {
-                'syrup': 'Сиропы',
-                'milk': 'Молоко',
-                'other': 'Добавки'
-            };
-
-            for (const [key, title] of Object.entries(groups)) {
-                const modsInGroup = allModifiers.filter(m => m.type === key);
-                
-                if (modsInGroup.length > 0) {
-                    container.innerHTML += `<div class="mod-group-title">${title}</div>`;
-                    modsInGroup.forEach(mod => {
-                        const modPrice = parseFloat(mod.price);
-                        container.innerHTML += `
-                            <div class="mod-item" onclick="toggleMod(this)">
-                                <input type="checkbox" value="${mod.id}" data-price="${modPrice}" data-name="${mod.name}">
-                                <span>${mod.name}</span>
-                                <span style="font-weight:bold;">${modPrice > 0 ? '+' + modPrice : ''} ₸</span>
-                            </div>
-                        `;
-                    });
-                }
-            }
-        }
-
-        // === 6. ВЫБОР В ОКНЕ ===
-        function toggleMod(div) {
-            const checkbox = div.querySelector('input');
-            checkbox.checked = !checkbox.checked;
-            
-            if(checkbox.checked) div.classList.add('selected');
-            else div.classList.remove('selected');
-
-            updateModalTotal();
-        }
-
-        function updateModalTotal() {
-            let base = currentItemBasePrice * currentSizeMult;
-            let modsTotal = 0;
-            document.querySelectorAll('.mod-item input:checked').forEach(input => {
-                modsTotal += parseFloat(input.dataset.price);
-            });
-            const finalPrice = Math.round(base + modsTotal);
-            document.getElementById('modal-total-price').innerText = finalPrice;
-        }
-
-        function closeModal() {
-            document.getElementById('modal-modifiers').style.display = 'none';
-        }
-
-        // === 7. ДОБАВЛЕНИЕ В КОРЗИНУ ===
-        function confirmAddToCart() {
-            const selectedMods = [];
-            let modsPrice = 0;
-
-            document.querySelectorAll('.mod-item input:checked').forEach(input => {
-                selectedMods.push({ id: input.value, name: input.dataset.name });
-                modsPrice += parseFloat(input.dataset.price);
-            });
-
-            let sizeLabel = (currentSize === 'S') ? '0.25' : (currentSize === 'L') ? '0.45' : '0.35';
-            // Если размеров нет (скрыты), не пишем объем в чек, чтобы не путать
-            if (document.getElementById('size-block').style.display === 'none') {
-                sizeLabel = ''; 
-            }
-
-            let details = [];
-            if(sizeLabel) details.push(sizeLabel);
-            selectedMods.forEach(m => details.push(m.name));
-            
-            let displayName = currentItemName;
-            if (details.length > 0) {
-                displayName += ` <span style="font-size:13px; color:#666;">(${details.join(', ')})</span>`;
-            }
-
-            const finalPrice = Math.round((currentItemBasePrice * currentSizeMult) + modsPrice);
-
+        // === БЫСТРЫЙ ЧЕК ===
+        // Если выбирать нечего — сразу добавляем в корзину
+        if (!hasOptions) {
             cart.push({
                 id: Date.now() + Math.random(),
-                name: displayName,
-                realName: currentItemName,
-                size: currentSize,
-                price: finalPrice,
-                modifiers: selectedMods.map(m => m.id)
+                name: name,            // Просто имя
+                realName: name,
+                size: 'M',             // Дефолт (не важно)
+                price: currentItemBasePrice,
+                modifiers: []          // Пусто
             });
-
-            renderCart();
-            closeModal();
+            renderCart(); // Обновляем список слева
+            return;       // СТОП. Окно открывать не надо.
         }
 
-        // === 8. КОРЗИНА И ОТПРАВКА ===
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            renderCart();
-        }
+        // === ОБЫЧНЫЙ ЧЕК (ЕСЛИ ЕСТЬ ВЫБОР) ===
+        const sizeBlock = document.getElementById('size-block');
 
-        function renderCart() {
-            const container = document.getElementById('cart-items');
-            container.innerHTML = '';
-            let total = 0;
+        if (hasSizes) {
+            sizeBlock.style.display = 'flex';
+            selectSize('M', 1.0); 
+        } else {
+            sizeBlock.style.display = 'none';
+            currentSize = 'M'; 
+            currentSizeMult = 1.0;
+        }
+        
+        document.getElementById('modal-modifiers').style.display = 'flex';
+        document.getElementById('modal-item-name').innerText = name;
+        
+        renderModifiersList();
+        updateModalTotal();
+    }
+
+    // === 3. ОТРИСОВКА СПИСКА ===
+    function renderModifiersList() {
+        const container = document.getElementById('modal-list-container');
+        container.innerHTML = '';
+
+        console.log('Рисуем модификаторы по правам:', currentPermissions);
+
+        // Собираем типы, которые разрешены (True)
+        let allowedTypes = [];
+        if (currentPermissions.syrup) allowedTypes.push('syrup');
+        if (currentPermissions.milk) allowedTypes.push('milk');
+        if (currentPermissions.ice) allowedTypes.push('ice');
+        if (currentPermissions.other) allowedTypes.push('other');
+
+        const groupTitles = { 'syrup': 'Сиропы', 'milk': 'Молоко', 'ice': 'Лёд', 'other': 'Добавки' };
+        
+        // Порядок вывода
+        const order = ['syrup', 'milk', 'ice', 'other'];
+        let hasAnyModifier = false;
+
+        for (const type of order) {
+            if (!allowedTypes.includes(type)) continue;
+
+            const modsInGroup = allModifiers.filter(m => m.type === type);
             
-            if (cart.length === 0) {
-                container.innerHTML = '<div style="color:#aaa; text-align:center; padding-top:20px;">Корзина пуста</div>';
+            if (modsInGroup.length > 0) {
+                hasAnyModifier = true;
+                container.innerHTML += `<div class="mod-group-title">${groupTitles[type]}</div>`;
+                
+                modsInGroup.forEach(mod => {
+                    const modPrice = parseFloat(mod.price);
+                    const priceLabel = modPrice > 0 ? `+${modPrice} ₸` : ''; 
+                    
+                    container.innerHTML += `
+                        <div class="mod-item" onclick="toggleMod(this)">
+                            <input type="checkbox" value="${mod.id}" data-price="${modPrice}" data-name="${mod.name}">
+                            <span>${mod.name}</span>
+                            <span style="font-weight:bold;">${priceLabel}</span>
+                        </div>
+                    `;
+                });
             }
-
-            cart.forEach((item, index) => {
-                total += item.price;
-                container.innerHTML += `
-                    <div class="cart-item">
-                        <div style="display:flex; flex-direction:column;">
-                            <span>${item.name}</span>
-                        </div>
-                        <div class="cart-item-right">
-                            <span style="font-weight:700;">${item.price} ₸</span>
-                            <button class="btn-remove" onclick="removeFromCart(${index})">✕</button>
-                        </div>
-                    </div>`;
-            });
-            document.getElementById('total-price').innerText = total + " ₸";
         }
 
-        function submitOrder() {
-            if(cart.length === 0) return alert("Корзина пуста!");
-            
-            const itemsToSend = cart.map(item => ({
-                name: item.realName,
-                size: item.size,
-                modifiers: item.modifiers
-            }));
-
-            fetch('/api/order/create/', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ items: itemsToSend })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    alert("Заказ отправлен! 👨‍🍳");
-                    // Пытаемся обновить бейдж в родительском окне (если получится) или в текущем
-                    try {
-                        const badge = window.parent.document.querySelector('.status-badge'); 
-                        // Но у нас бейдж номера заказа внутри cashier.html?
-                        const orderBadge = document.getElementById('ui-order-id');
-                        if(orderBadge) {
-                            let currentNum = parseInt(orderBadge.innerText.replace('#', ''));
-                            orderBadge.innerText = '#' + (currentNum + 1);
-                        }
-                    } catch(e) {}
-
-                    cart = []; renderCart();
-                } else {
-                    alert("Ошибка: " + data.error);
-                }
-            });
+        if (!hasAnyModifier) {
+            container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Нет доступных добавок</div>';
         }
-    </script>
+    }
+
+    // === 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+    function selectSize(size, multiplier) {
+        currentSize = size;
+        currentSizeMult = multiplier;
+        document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+        if(size === 'S') document.getElementById('btn-size-s').classList.add('active');
+        if(size === 'M') document.getElementById('btn-size-m').classList.add('active');
+        if(size === 'L') document.getElementById('btn-size-l').classList.add('active');
+        updateModalTotal();
+    }
+
+    function toggleMod(div) {
+        const checkbox = div.querySelector('input');
+        checkbox.checked = !checkbox.checked;
+        if(checkbox.checked) div.classList.add('selected');
+        else div.classList.remove('selected');
+        updateModalTotal();
+    }
+
+    function updateModalTotal() {
+        let base = currentItemBasePrice * currentSizeMult;
+        let modsTotal = 0;
+        document.querySelectorAll('.mod-item input:checked').forEach(input => {
+            modsTotal += parseFloat(input.dataset.price);
+        });
+        document.getElementById('modal-total-price').innerText = Math.round(base + modsTotal);
+    }
+
+    function closeModal() {
+        document.getElementById('modal-modifiers').style.display = 'none';
+    }
+
+    // === 5. КОРЗИНА И ЗАКАЗ ===
+    function confirmAddToCart() {
+        const selectedMods = [];
+        let modsPrice = 0;
+
+        document.querySelectorAll('.mod-item input:checked').forEach(input => {
+            selectedMods.push({ id: input.value, name: input.dataset.name });
+            modsPrice += parseFloat(input.dataset.price);
+        });
+
+        let sizeLabel = '';
+        if (document.getElementById('size-block').style.display !== 'none') {
+            sizeLabel = (currentSize === 'S') ? '0.25' : (currentSize === 'L') ? '0.45' : '0.35';
+        }
+
+        let details = [];
+        if(sizeLabel) details.push(sizeLabel);
+        selectedMods.forEach(m => details.push(m.name));
+        
+        let displayName = currentItemName;
+        if (details.length > 0) {
+            displayName += ` <span style="font-size:13px; color:#666;">(${details.join(', ')})</span>`;
+        }
+
+        const finalPrice = Math.round((currentItemBasePrice * currentSizeMult) + modsPrice);
+
+        cart.push({
+            id: Date.now() + Math.random(),
+            name: displayName,
+            realName: currentItemName,
+            size: currentSize,
+            price: finalPrice,
+            modifiers: selectedMods.map(m => m.id)
+        });
+
+        renderCart();
+        closeModal();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function renderCart() {
+        const container = document.getElementById('cart-items');
+        container.innerHTML = '';
+        let total = 0;
+        
+        if (cart.length === 0) {
+            container.innerHTML = '<div style="color:#aaa; text-align:center; padding-top:20px;">Корзина пуста</div>';
+        }
+
+        cart.forEach((item, index) => {
+            total += item.price;
+            container.innerHTML += `
+                <div class="cart-item">
+                    <div style="display:flex; flex-direction:column;">
+                        <span>${item.name}</span>
+                    </div>
+                    <div class="cart-item-right">
+                        <span style="font-weight:700;">${item.price} ₸</span>
+                        <button class="btn-remove" onclick="removeFromCart(${index})">✕</button>
+                    </div>
+                </div>`;
+        });
+        document.getElementById('total-price').innerText = total + " ₸";
+    }
+
+    function submitOrder() {
+        if(cart.length === 0) return alert("Корзина пуста!");
+        
+        const itemsToSend = cart.map(item => ({
+            name: item.realName,
+            size: item.size,
+            modifiers: item.modifiers
+        }));
+
+        fetch('/api/order/create/', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ items: itemsToSend })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                alert("Заказ отправлен! 👨‍🍳");
+                try {
+                    const orderBadge = document.getElementById('ui-order-id');
+                    if(orderBadge) {
+                        let currentNum = parseInt(orderBadge.innerText.replace('#', ''));
+                        orderBadge.innerText = '#' + (currentNum + 1);
+                    }
+                } catch(e) {}
+                cart = []; renderCart();
+            } else {
+                alert("Ошибка: " + data.error);
+            }
+        });
+    }
+
+    // === 6. ФИЛЬТРЫ ===
+    function filterMenu(category) {
+        // Табы
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes("'" + category + "'"));
+        if(activeBtn) activeBtn.classList.add('active');
+
+        // Товары
+        document.querySelectorAll('.menu-item').forEach(item => {
+            if(item.dataset.category === category) item.style.display = 'flex';
+            else item.style.display = 'none';
+        });
+    }
+    
+    // Поиск
+    document.querySelector('.search-input').addEventListener('keyup', function(e) {
+        const val = e.target.value.toLowerCase();
+        document.querySelectorAll('.menu-item').forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            if(name.includes(val)) item.style.display = 'flex';
+            else item.style.display = 'none';
+        });
+    });
+
+    // Автозапуск
+    document.addEventListener("DOMContentLoaded", function() {
+        filterMenu('coffee');
+    });
+</script>
 </body>
 </html>

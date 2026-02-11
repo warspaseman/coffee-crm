@@ -7,6 +7,18 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 
+class Shift(models.Model):
+    opened_at = models.DateTimeField(auto_now_add=True, verbose_name="Открытие")
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name="Закрытие")
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+    
+    total_sales = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Выручка")
+    order_count = models.IntegerField(default=0, verbose_name="Кол-во заказов")
+
+    def __str__(self):
+        status = "Открыта" if self.is_active else "Закрыта"
+        return f"Смена #{self.id} ({status})"
+
 # --- 1. Поставщики и Ингредиенты ---
 class Supplier(models.Model):
     name = models.CharField(max_length=100, verbose_name="Компания / Имя")
@@ -104,14 +116,14 @@ class MenuItem(models.Model):
     
     name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Базовая цена")
-    # Убедись, что default стоит из нового списка, например 'coffee'
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='coffee', verbose_name="Категория")
     
     is_sized = models.BooleanField(default=True, verbose_name="Имеет размеры (S/M/L)")
     
-    def __str__(self):
-        return self.name
-    
+    has_milk_mods = models.BooleanField(default=False, verbose_name="МОЖНО: Молоко")
+    has_syrup_mods = models.BooleanField(default=False, verbose_name="МОЖНО: Сиропы")
+    has_ice_mods = models.BooleanField(default=False, verbose_name="МОЖНО: Лёд")
+    has_other_mods = models.BooleanField(default=False, verbose_name="МОЖНО: Прочее (корица и т.д.)")
     def __str__(self):
         return self.name
 
@@ -130,7 +142,8 @@ class Modifier(models.Model):
     TYPE_CHOICES = [
         ('syrup', 'Сиропы'),
         ('milk', 'Молоко'),
-        ('other', 'Другое')
+        ('other', 'Добавки'),
+        ('ice', 'Лёд'),
     ]
 
     name = models.CharField(max_length=100, verbose_name="Название")
@@ -152,6 +165,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, default='pending') 
     is_completed = models.BooleanField(default=False)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0) # Лучше хранить итог в базе
+    shift = models.ForeignKey(Shift, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
 
     # В классе Order (models.py)
 
@@ -266,6 +280,7 @@ class OrderItem(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     size = models.CharField(max_length=1, choices=SIZE_CHOICES, default='M')
+    price = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name="Цена на момент продажи")
     modifiers = models.ManyToManyField(Modifier, blank=True)
 
     @property

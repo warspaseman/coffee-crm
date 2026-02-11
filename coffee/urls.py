@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     # Страницы
+    path('api/shift/<str:action>/', views.api_manage_shift, name='api_manage_shift'),
     path('', views.home_view, name='home'),          # Главная (с кнопками)
     path('cashier/', views.cashier_view, name='cashier'), # Касса
     path('barista/', views.barista_view, name='barista'), # Кухня
@@ -20,6 +21,5 @@ urlpatterns = [
     
     # !!! ВОТ ЭТОЙ СТРОКИ СКОРЕЕ ВСЕГО НЕ БЫЛО !!!
     path('api/order/<int:order_id>/update/', views.api_update_status, name='api_update_status'),
-    
     path('api/menu/', views.menu_api, name='menu_api'),
 ]
