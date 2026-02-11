@@ -3,152 +3,219 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Barista Screen</title>
+    <title>KDS - Кухня</title>
     <style>
-        body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #F3F4F6; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; }
-        .btn-back {
-            background-color: #E5E7EB; color: #1F2937; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin-bottom: 20px;
-        }
-        .kanban-board { display: flex; gap: 20px; height: 100%; }
-        .kanban-column { flex: 1; background: #ffffff; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .column-header { padding: 20px; text-align: center; font-weight: 800; background-color: #FCD34D; color: #1F2937; }
-        .column-subheader { display: flex; justify-content: space-between; padding: 10px 20px; background: #FFFBEB; font-size: 12px; font-weight: 600; color: #92400E; }
-        .orders-list { flex-grow: 1; padding: 15px; overflow-y: auto; background-color: #F9FAFB; }
-        .order-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #E5E7EB; }
-        .card-top { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 800; font-size: 20px; }
+        body { margin: 0; padding: 20px; background: #1F2937; font-family: system-ui, sans-serif; color: white; }
         
-        /* Таймер */
-        .timer { font-size: 16px; font-weight: 700; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 6px; }
-        .timer.expired { background: #1F2937; color: #fff; } /* Если время вышло */
+        /* КОНТЕЙНЕР ДЛЯ ПОТОКА ЗАКАЗОВ */
+        .orders-stream {
+            display: flex;
+            flex-wrap: wrap; /* Плитки переносятся на новую строку */
+            gap: 15px;
+            align-items: flex-start;
+        }
 
-        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; color: white; margin-top: 10px; }
-        .btn-green { background-color: #059669; }
-        .btn-gray { background-color: #6B7280; }
+        /* КАРТОЧКА ЗАКАЗА */
+        .ticket {
+            background: #fff;
+            color: #111;
+            width: 280px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-left: 6px solid #9CA3AF; /* Серый по умолчанию (pending) */
+        }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* ЗАГОЛОВОК КАРТОЧКИ */
+        .ticket-header {
+            background: #F3F4F6; padding: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .ticket-id { font-weight: 900; font-size: 20px; }
+        .ticket-time { font-size: 14px; color: #6B7280; font-weight: 600; }
+
+        /* СПИСОК ТОВАРОВ */
+        .ticket-body { padding: 15px; flex-grow: 1; min-height: 100px; }
+        .ticket-item { font-size: 15px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+        .ticket-item span { font-weight: 400; color: #555; font-size: 13px; }
+
+        /* ФУТЕР С КНОПКОЙ */
+        .ticket-footer { padding: 10px; background: #fff; border-top: 1px solid #f0f0f0; }
+        .action-btn {
+            width: 100%; padding: 12px; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: 0.2s; text-transform: uppercase;
+        }
+        
+        /* === СТАТУСЫ === */
+        
+        /* 1. НОВЫЙ (PENDING) */
+        .status-pending { border-left-color: #FCD34D; } /* Желтая полоска */
+        .btn-start { background: #FCD34D; color: #1F2937; }
+        .btn-start:hover { background: #F59E0B; }
+
+        /* 2. ГОТОВИТСЯ (PREPARING) */
+        .status-preparing { border-left-color: #3B82F6; } /* Синяя полоска */
+        .timer-badge { display: block; text-align: center; font-size: 24px; font-weight: 800; margin-bottom: 10px; color: #3B82F6; font-variant-numeric: tabular-nums; }
+        .btn-ready { background: #3B82F6; color: white; }
+        .btn-ready:hover { background: #2563EB; }
+
+        /* 3. ГОТОВ (READY) */
+        .status-ready { border-left-color: #10B981; background: #ECFDF5; } /* Зеленая полоска */
+        .status-ready .ticket-header { background: #D1FAE5; }
+        .status-ready .ticket-body { background: #ECFDF5; }
+        .status-ready .ticket-footer { background: #ECFDF5; }
+        
+        .ready-message { text-align: center; color: #059669; font-weight: 800; font-size: 18px; margin-bottom: 10px; }
+        .btn-serve { background: #10B981; color: white; }
+        .btn-serve:hover { background: #059669; }
+
+        /* ПУСТОЙ ЭКРАН */
+        .no-orders { width: 100%; text-align: center; color: #6B7280; margin-top: 100px; font-size: 20px; }
+
     </style>
 </head>
 <body>
 
-    <a href="{% url 'home' %}" class="btn-back">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        <span class="t-back">Назад</span>
-    </a>
-
-    <div class="kanban-board">
-        <div class="kanban-column">
-            <div class="column-header"><span class="t-prep">Готовятся</span></div>
-            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-timer">ТАЙМЕР (5 мин)</span></div>
-            <div id="pending-orders" class="orders-list"></div>
+    <div class="orders-stream" id="kitchen-container">
         </div>
-        <div class="kanban-column">
-            <div class="column-header"><span class="t-ready">Готовы</span></div>
-            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-action">Действие</span></div>
-            <div id="ready-orders" class="orders-list"></div>
-        </div>
-        <div class="kanban-column">
-            <div class="column-header"><span class="t-sent">Отправлены</span></div>
-            <div class="column-subheader"><span class="t-order">ЗАКАЗ</span> <span class="t-status">Статус</span></div>
-            <div id="completed-orders" class="orders-list"></div>
-        </div>
-    </div>
-
     <script>
-        const dict = {
-            'ru': { 'back': 'Назад', 'prep': 'ГОТОВЯТСЯ', 'ready': 'ГОТОВЫ', 'sent': 'ОТПРАВЛЕНЫ', 'order': 'ЗАКАЗ', 'timer': 'ТАЙМЕР', 'action': 'Действие', 'status': 'Статус', 'btn_ready': '✅ Готово', 'btn_give': '📤 Отдать', 'given': 'Выдан' },
-            'en': { 'back': 'Back', 'prep': 'PREPARING', 'ready': 'READY', 'sent': 'COMPLETED', 'order': 'ORDER', 'timer': 'TIMER', 'action': 'Action', 'status': 'Status', 'btn_ready': '✅ Done', 'btn_give': '📤 Serve', 'given': 'Served' }
-        };
+        // Запускаем обновление данных каждые 2 секунды
+        setInterval(fetchOrders, 2000);
+        
+        // Запускаем тиканье таймеров каждую 1 секунду (для красоты)
+        setInterval(updateTimers, 1000);
+        
+        fetchOrders();
 
-        function applyLang() {
-            const lang = localStorage.getItem('pos_lang') || 'ru';
-            document.querySelectorAll('[class^="t-"]').forEach(el => {
-                const key = el.className.split(' ')[0].replace('t-', '');
-                if (dict[lang][key]) el.innerText = dict[lang][key];
-            });
-            return lang;
-        }
-
-        // --- ЛОГИКА ТАЙМЕРА И ЗАКАЗОВ ---
-        function loadOrders() {
+        function fetchOrders() {
             fetch('/api/orders/')
-                .then(r => r.json())
-                .then(data => renderOrders(data.orders));
+                .then(res => res.json())
+                .then(data => {
+                    syncTickets(data.orders);
+                })
+                .catch(err => console.error("Ошибка связи:", err));
         }
 
-        function renderOrders(orders) {
-            const pending = document.getElementById('pending-orders');
-            const ready = document.getElementById('ready-orders');
-            const completed = document.getElementById('completed-orders');
-            
-            pending.innerHTML = ''; ready.innerHTML = ''; completed.innerHTML = '';
-            const lang = localStorage.getItem('pos_lang') || 'ru';
+        // ГЛАВНАЯ ФУНКЦИЯ: СИНХРОНИЗАЦИЯ (Вместо перерисовки)
+        function syncTickets(orders) {
+            const container = document.getElementById('kitchen-container');
+            const serverIds = new Set(orders.map(o => o.id));
 
+            // 1. УДАЛЕНИЕ: Убираем карточки, которых больше нет на сервере (например, Completed)
+            document.querySelectorAll('.ticket').forEach(card => {
+                const cardId = parseInt(card.dataset.id);
+                if (!serverIds.has(cardId)) {
+                    card.remove(); // Удаляем элемент из DOM
+                }
+            });
+
+            // 2. ДОБАВЛЕНИЕ И ОБНОВЛЕНИЕ
             orders.forEach(order => {
-                const card = document.createElement('div');
-                card.className = 'order-card';
-                
-                if (order.status === 'pending') {
-                    // РАСЧЕТ ТАЙМЕРА
-                    // Получаем время создания
-                    const createdTime = new Date(order.created_at).getTime();
-                    const now = new Date().getTime();
-                    // Разница в секундах
-                    const diff = Math.floor((now - createdTime) / 1000);
-                    // 5 минут = 300 секунд
-                    let timeLeft = 300 - diff;
+                // Игнорируем completed (они должны исчезнуть)
+                if (order.status === 'completed') return;
+
+                let card = document.querySelector(`.ticket[data-id="${order.id}"]`);
+
+                // Если карточки НЕТ — создаем новую
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = `ticket status-${order.status}`;
+                    card.dataset.id = order.id;
+                    card.dataset.createdAt = order.created_at; // Сохраняем время для таймера
                     
-                    let timerText = "00:00";
-                    let timerClass = "timer";
-
-                    if (timeLeft > 0) {
-                        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-                        const s = (timeLeft % 60).toString().padStart(2, '0');
-                        timerText = `${m}:${s}`;
-                    } else {
-                        timerText = "00:00";
-                        timerClass = "timer expired";
+                    // Генерируем HTML карточки
+                    card.innerHTML = generateCardHTML(order);
+                    container.appendChild(card); // Добавляем в конец
+                } 
+                else {
+                    // Если карточка ЕСТЬ — проверяем, изменился ли статус
+                    if (card.dataset.status !== order.status) {
+                        card.className = `ticket status-${order.status}`;
+                        card.dataset.status = order.status;
+                        // Перерисовываем внутренности (кнопки поменялись)
+                        card.innerHTML = generateCardHTML(order);
                     }
+                }
+            });
 
-                    card.innerHTML = `
-                        <div class="card-top">
-                            <span>#${order.id}</span>
-                            <span class="${timerClass}">${timerText}</span>
-                        </div>
-                        <div style="margin-bottom:15px; font-size:16px;">${order.item_name}</div>
-                        <button class="btn-action btn-green" onclick="updateStatus(${order.id}, 'ready')">${dict[lang]['btn_ready']}</button>
-                    `;
-                    pending.appendChild(card);
-                } 
-                else if (order.status === 'ready') {
-                    card.innerHTML = `
-                        <div class="card-top"><span>#${order.id}</span></div>
-                        <div style="margin-bottom:15px;">${order.item_name}</div>
-                        <button class="btn-action btn-gray" onclick="updateStatus(${order.id}, 'completed')">${dict[lang]['btn_give']}</button>
-                    `;
-                    ready.appendChild(card);
-                } 
-                else if (order.status === 'completed') {
-                    card.style.opacity = "0.6";
-                    card.innerHTML = `
-                        <div class="card-top">
-                            <span>#${order.id}</span>
-                            <span style="font-size:12px; background:#eee; padding:4px;">${dict[lang]['given']}</span>
-                        </div>
-                        <div>${order.item_name}</div>
-                    `;
-                    completed.appendChild(card);
+            if (orders.length === 0 && container.children.length === 0) {
+                container.innerHTML = '<div class="no-orders">ОТДЫХАЙ</div>';
+            } else {
+                const emptyMsg = container.querySelector('.no-orders');
+                if (emptyMsg) emptyMsg.remove();
+            }
+        }
+
+        // Генерация внутренностей карточки (чтобы не дублировать код)
+        function generateCardHTML(order) {
+            const createdDate = new Date(order.created_at);
+            const timeStr = createdDate.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
+            
+            // Собираем товары (парсим HTML из строки, если там есть span)
+            const itemsHtml = order.item_name.split(',').map(i => `<div class="ticket-item">${i.trim()}</div>`).join('');
+
+            let footerHtml = '';
+            let extraBodyHtml = '';
+
+            if (order.status === 'pending') {
+                footerHtml = `<button class="action-btn btn-start" onclick="updateStatus(${order.id}, 'preparing')">Начать 🔥</button>`;
+            } 
+            else if (order.status === 'preparing') {
+                // Таймер вставляем пустой, функция updateTimers его заполнит через 1мс
+                extraBodyHtml = `<div class="timer-badge" id="timer-${order.id}">00:00</div>`;
+                footerHtml = `<button class="action-btn btn-ready" onclick="updateStatus(${order.id}, 'ready')">Готово ✅</button>`;
+            } 
+            else if (order.status === 'ready') {
+                extraBodyHtml = `<div class="ready-message">Зови гостя! 📢</div>`;
+                footerHtml = `<button class="action-btn btn-serve" onclick="updateStatus(${order.id}, 'completed')">Выдан 👋</button>`;
+            }
+
+            return `
+                <div class="ticket-header">
+                    <span class="ticket-id">#${order.id}</span>
+                    <span class="ticket-time">${timeStr}</span>
+                </div>
+                <div class="ticket-body">
+                    ${extraBodyHtml}
+                    ${itemsHtml}
+                </div>
+                <div class="ticket-footer">
+                    ${footerHtml}
+                </div>
+            `;
+        }
+
+        // Функция ТАЙМЕРА (работает локально, не мигает)
+        function updateTimers() {
+            document.querySelectorAll('.ticket[data-status="preparing"]').forEach(card => {
+                const createdDate = new Date(card.dataset.createdAt);
+                const timerElement = card.querySelector('.timer-badge');
+                
+                if (timerElement) {
+                    const diffMs = new Date() - createdDate;
+                    const mm = Math.floor(diffMs / 60000).toString().padStart(2, '0');
+                    const ss = Math.floor((diffMs % 60000) / 1000).toString().padStart(2, '0');
+                    timerElement.innerText = `${mm}:${ss}`;
                 }
             });
         }
 
-        function updateStatus(id, status) {
-            fetch(`/api/orders/update/${id}/`, {
-                method: 'POST', body: JSON.stringify({status: status})
-            }).then(() => loadOrders());
+        function updateStatus(id, newStatus) {
+            fetch(`/api/order/${id}/update/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) fetchOrders(); // Мгновенно обновить после клика
+            });
         }
-
-        // Обновляем каждую секунду (чтобы таймер тикал)
-        setInterval(loadOrders, 1000);
-        loadOrders();
-        applyLang();
     </script>
 </body>
 </html>

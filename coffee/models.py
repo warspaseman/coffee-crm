@@ -92,12 +92,25 @@ class SupplyItem(models.Model):
 
 # --- 3. Меню и Рецепты ---
 class MenuItem(models.Model):
-    # ВОТ ОНО - ПОЛЕ, КОТОРОЕ ИЩЕТ ADMIN.PY
-    CATEGORY_CHOICES = [('coffee', 'Кофе'), ('dessert', 'Десерты'), ('other', 'Другое'), ('snacks', 'Снеки')]
+    # НОВЫЕ КАТЕГОРИИ
+    CATEGORY_CHOICES = [
+        ('coffee', 'Кофе'),
+        ('tea', 'Чай'),
+        ('cold', 'Хол. напитки'), # Лимонады, смузи
+        ('pastry', 'Выпечка'),    # Круассаны, булки
+        ('bowl', 'Боулы'),        # Еда в тарелках
+        ('other', 'Другое'),      # Вода, жвачка
+    ]
     
     name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Базовая цена")
+    # Убедись, что default стоит из нового списка, например 'coffee'
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='coffee', verbose_name="Категория")
+    
+    is_sized = models.BooleanField(default=True, verbose_name="Имеет размеры (S/M/L)")
+    
+    def __str__(self):
+        return self.name
     
     def __str__(self):
         return self.name
@@ -111,15 +124,26 @@ class Recipe(models.Model):
         return f"{self.ingredient.name} для {self.menu_item.name}"
 
 # --- 4. Модификаторы ---
+# --- 4. Модификаторы ---
 class Modifier(models.Model):
+    # Категории для группировки в меню
+    TYPE_CHOICES = [
+        ('syrup', 'Сиропы'),
+        ('milk', 'Молоко'),
+        ('other', 'Другое')
+    ]
+
     name = models.CharField(max_length=100, verbose_name="Название")
     price = models.DecimalField(max_digits=6, decimal_places=2, default=0, verbose_name="Цена")
-    # blank=True, null=True -> на случай, если это "Убрать лед" (ничего не списываем)
+    
+    # НОВОЕ ПОЛЕ: ТИП
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='other', verbose_name="Категория")
+    
     ingredient = models.ForeignKey(Ingredient, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Списание")
     quantity_needed = models.DecimalField(max_digits=10, decimal_places=3, default=0, verbose_name="Расход")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_type_display()})"
 
 # --- 5. Заказы ---
 class Order(models.Model):
@@ -129,75 +153,62 @@ class Order(models.Model):
     is_completed = models.BooleanField(default=False)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0) # Лучше хранить итог в базе
 
-    @transaction.atomic
-    def deduct_ingredients(self):
-        """Списывает продукты и проверяет автозаказ (Официальное письмо)."""
-        
-        # Decimal коэффициенты
-        size_multipliers = {
-            'S': Decimal('0.7'),
-            'M': Decimal('1.0'),
-            'L': Decimal('1.3')
-        }
+    # В классе Order (models.py)
 
-        # prefetch_related ускоряет работу
+    @transaction.atomic
+    def finish_order(self):
+        """Списывает продукты. Если выбрано альт. молоко, обычное не списывает."""
+        if self.is_completed:
+            return
+
+        # 1. Загружаем все данные заказа
         order_items = self.items.select_related('menu_item').prefetch_related(
             'menu_item__recipes__ingredient', 
             'modifiers__ingredient'
         )
 
-        # --- 1. ПРОВЕРКА (Хватает ли?) ---
         for item in order_items:
-            multiplier = size_multipliers.get(item.size, Decimal('1.0'))
-            
-            # Рецепты
-            for recipe in item.menu_item.recipes.all():
-                needed = recipe.quantity_needed * multiplier * item.quantity
-                if recipe.ingredient.amount < needed:
-                    raise ValidationError(f"Не хватает ингредиента: {recipe.ingredient.name}")
+            # --- ПРОВЕРКА НА ЗАМЕНУ МОЛОКА ---
+            # Ищем, выбрал ли клиент модификатор с типом 'milk'
+            has_alternative_milk = item.modifiers.filter(type='milk').exists()
 
-            # Модификаторы
-            for mod in item.modifiers.all():
-                if mod.ingredient:
-                    needed_mod = mod.quantity_needed * item.quantity
-                    if mod.ingredient.amount < needed_mod:
-                        raise ValidationError(f"Не хватает модификатора: {mod.ingredient.name}")
+            # Коэффициент размера (S=0.7, M=1.0, L=1.3)
+            # Если размера нет, считаем как M (1.0)
+            size_map = {'S': Decimal('0.7'), 'M': Decimal('1.0'), 'L': Decimal('1.3')}
+            multiplier = size_map.get(item.size, Decimal('1.0'))
 
-        # --- 2. СПИСАНИЕ И АВТОЗАКАЗ ---
-        for item in order_items:
-            multiplier = size_multipliers.get(item.size, Decimal('1.0'))
-            
-            # А) Списываем ингредиенты рецепта
+            # --- А. СПИСАНИЕ ПО РЕЦЕПТУ (С учетом замены) ---
             for recipe in item.menu_item.recipes.all():
-                needed = recipe.quantity_needed * multiplier * item.quantity
                 
-                # 1. Обновляем склад
+                # ГЛАВНАЯ МАГИЯ ЗДЕСЬ:
+                # Если в заказе есть "Альтернативное молоко" И текущий ингредиент рецепта помечен как "is_milk"
+                # ТО МЫ ЕГО ПРОПУСКАЕМ (не списываем)
+                if has_alternative_milk and recipe.ingredient.is_milk:
+                    continue 
+
+                # Иначе списываем как обычно
+                needed = recipe.quantity_needed * multiplier * item.quantity
                 Ingredient.objects.filter(pk=recipe.ingredient.pk).update(
                     amount=models.F('amount') - needed
                 )
-                
-                # 2. Перезагружаем ингредиент, чтобы увидеть актуальный остаток
-                ing = recipe.ingredient
-                ing.refresh_from_db()
 
-                # 3. ЛОГИКА ОТПРАВКИ ОФИЦИАЛЬНОГО ПИСЬМА
-                if ing.amount <= ing.min_limit and ing.supplier and not ing.reorder_sent:
-                    self._send_official_email(ing)
-
-            # Б) Списываем модификаторы (Та же логика)
+            # --- Б. СПИСАНИЕ МОДИФИКАТОРОВ ---
             for mod in item.modifiers.all():
                 if mod.ingredient:
-                    needed_mod = mod.quantity_needed * item.quantity
+                    # Для молока тоже применяем множитель размера!
+                    # (Ведь в большой Латте нужно больше овсяного молока, чем в маленький)
+                    if mod.type == 'milk':
+                         needed_mod = mod.quantity_needed * multiplier * item.quantity
+                    else:
+                         # Сиропы обычно льют фиксированно, независимо от размера (или поменяй логику тут)
+                         needed_mod = mod.quantity_needed * item.quantity
                     
                     Ingredient.objects.filter(pk=mod.ingredient.pk).update(
                         amount=models.F('amount') - needed_mod
                     )
-                    
-                    ing = mod.ingredient
-                    ing.refresh_from_db()
-                    
-                    if ing.amount <= ing.min_limit and ing.supplier and not ing.reorder_sent:
-                        self._send_official_email(ing)
+
+        self.is_completed = True
+        self.save()
         
     def _send_official_email(self, ing):
         """Вспомогательный метод для отправки красивого письма."""

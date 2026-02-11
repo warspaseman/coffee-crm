@@ -6,10 +6,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.db.models import Q, Sum, Count # Добавил Sum и Count
-from django.db.models.functions import TruncDate # Для графика по дням
+from django.db.models import Q, Sum, Count
+from django.db.models.functions import TruncDate
 import json
-from .models import Order, OrderItem, MenuItem 
+# Импортируем все модели
+from .models import Order, OrderItem, MenuItem, Modifier, Ingredient
 
 
 # --- СТРАНИЦЫ (HTML) ---
@@ -18,7 +19,19 @@ def home_view(request):
     return render(request, 'coffee/home.html')
 
 def cashier_view(request):
-    return render(request, 'coffee/cashier.html')
+    # Логика номера заказа
+    last_order = Order.objects.last()
+    next_id = last_order.id + 1 if last_order else 1
+    
+    products = MenuItem.objects.all()
+    modifiers = list(Modifier.objects.values())
+
+    context = {
+        'next_id': next_id,
+        'products': products,
+        'modifiers': modifiers 
+    }
+    return render(request, 'coffee/cashier.html', context)
 
 def barista_view(request):
     return render(request, 'coffee/barista.html')
@@ -26,40 +39,22 @@ def barista_view(request):
 def settings_view(request):
     return render(request, 'coffee/settings.html')
 
-# СТРАНИЦА: АРХИВ
 def archive_view(request):
-    # Берем выполненные заказы за последние 24 часа
     orders = Order.objects.filter(
         status='completed',
         created_at__gte=timezone.now() - timezone.timedelta(days=1)
     ).order_by('-created_at')
-    
     return render(request, 'coffee/archive.html', {'orders': orders})
 
-# СТРАНИЦА: АНАЛИТИКА (ОБНОВЛЕННАЯ)
-# coffee/views.py
-
+# --- АНАЛИТИКА (Код друга сохранен) ---
 def analytics_view(request):
-    # 1. Получаем период из URL (по умолчанию 7 дней)
     period = request.GET.get('period', '7')
-    
-    # Карта дней: 'ключ_из_url': количество_дней
-    days_map = {
-        '7': 7,
-        '30': 30,
-        '90': 90,   # 3 месяца
-        '180': 180, # 6 месяцев
-        '365': 365  # 1 год
-    }
+    days_map = {'7': 7, '30': 30, '90': 90, '180': 180, '365': 365}
     days = days_map.get(period, 7)
     
-    # Дата начала выборки
     start_date = timezone.now() - timezone.timedelta(days=days)
-    
-    # 2. Берем заказы ТОЛЬКО за выбранный период
     orders_qs = Order.objects.filter(status='completed', created_at__gte=start_date)
 
-    # 3. Считаем общую выручку и кол-во заказов (по отфильтрованным данным)
     total_stats = orders_qs.aggregate(
         total_revenue=Sum('total_price'),
         total_count=Count('id')
@@ -67,14 +62,11 @@ def analytics_view(request):
     revenue = total_stats['total_revenue'] or 0
     orders_count = total_stats['total_count'] or 0
 
-    # 4. СПИСОК ВСЕХ ТОВАРОВ (Убрали срез [:5])
-    # Считаем продажи конкретно за этот период
     all_items = OrderItem.objects.filter(order__in=orders_qs)\
         .values('menu_item__name')\
         .annotate(sold_count=Sum('quantity'))\
-        .order_by('-sold_count') # Сортируем: от популярных к редким
+        .order_by('-sold_count')
 
-    # 5. График (Тоже фильтруем по дате)
     daily_sales = orders_qs\
         .annotate(date=TruncDate('created_at'))\
         .values('date')\
@@ -87,33 +79,40 @@ def analytics_view(request):
     context = {
         'revenue': revenue,
         'orders_count': orders_count,
-        'all_items': all_items,       # Передаем полный список
+        'all_items': all_items,
         'chart_dates': json.dumps(dates),
         'chart_revenues': json.dumps(revenues),
-        'period': period,             # Чтобы знать, какая кнопка активна
+        'period': period,
     }
-    
     return render(request, 'coffee/analytics.html', context)
+
 
 # --- API (ЛОГИКА) ---
 
-# 1. Получить список заказов (Для Баристы)
+# 1. Получить список заказов (УЛУЧШИЛ: Теперь показывает модификаторы баристе)
+# coffee/views.py
+
 def api_orders(request):
-    now = timezone.now()
-    
-    # ЛОГИКА ФИЛЬТРАЦИИ:
-    # 1. Показываем ВСЕ активные (pending, ready) за 24 часа
-    # 2. Показываем ЗАВЕРШЕННЫЕ (completed) только за последние 1 ЧАС
+    # Показываем только: pending, preparing, ready
+    # completed НЕ показываем (они уходят в архив)
     orders = Order.objects.filter(
-        Q(status__in=['pending', 'ready'], created_at__gte=now - timezone.timedelta(hours=24)) |
-        Q(status='completed', created_at__gte=now - timezone.timedelta(hours=1))
-    ).order_by('created_at')
+        status__in=['pending', 'preparing', 'ready']
+    ).order_by('created_at') # Старые слева (или справа, как поток)
     
     data = []
     for order in orders:
-        items_names = [item.menu_item.name for item in order.items.all()]
-        display_name = ", ".join(items_names)
-        if not display_name: display_name = "Пустой заказ"
+        # Собираем товары + модификаторы
+        items_display = []
+        for item in order.items.all():
+            name = item.menu_item.name
+            mods = item.modifiers.all()
+            if mods:
+                mod_names = ", ".join([m.name for m in mods])
+                name += f" <span style='color:#666'>({mod_names})</span>"
+            items_display.append(name)
+            
+        # Формируем строку (теперь это HTML строка)
+        display_name = ", ".join(items_display)
 
         data.append({
             'id': order.id,
@@ -124,7 +123,7 @@ def api_orders(request):
     return JsonResponse({'orders': data})
 
 
-# 2. Обновить статус
+# 2. Обновить статус (ВОССТАНОВИЛ: Без неё всё падало)
 @csrf_exempt
 def api_update_status(request, order_id):
     if request.method == 'POST':
@@ -139,50 +138,56 @@ def api_update_status(request, order_id):
     return JsonResponse({'success': False})
 
 
-# 3. Создать заказ
 @csrf_exempt
 def api_create_order(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             items = data.get('items', [])
-            if not items: 
-                return JsonResponse({'success': False, 'error': 'Пусто'})
+            if not items: return JsonResponse({'success': False, 'error': 'Пусто'})
 
-            # 1. Сначала создаем ОДИН общий заказ
             order = Order.objects.create(status='pending') 
-
-            # 2. Добавляем товары в этот заказ
+            
             for item_data in items:
                 try:
-                    menu_item = MenuItem.objects.get(name=item_data['name'])
-                    OrderItem.objects.create(
+                    clean_name = item_data.get('realName', item_data.get('name'))
+                    menu_item = MenuItem.objects.get(name=clean_name)
+                    
+                    # ПОЛУЧАЕМ РАЗМЕР ОТ КАССИРА (по умолчанию M)
+                    chosen_size = item_data.get('size', 'M')
+                    
+                    order_item = OrderItem.objects.create(
                         order=order, 
                         menu_item=menu_item, 
                         quantity=1, 
-                        size='M'
+                        size=chosen_size # <--- ВСТАВЛЯЕМ ВЫБРАННЫЙ РАЗМЕР
                     )
+                    
+                    mod_ids = item_data.get('modifiers', [])
+                    if mod_ids:
+                        order_item.modifiers.set(mod_ids)
+                        order_item.save()
+
                 except MenuItem.DoesNotExist:
                     continue 
             
-            # ВАЖНО: Считаем общую сумму заказа и сохраняем её (для аналитики)
+            # Пересчет и списание
             total = sum(item.final_price for item in order.items.all())
             order.total_price = total
             order.save()
 
-            # 3. Списываем ингредиенты + Проверяем автозаказ (Email)
             try:
-                order.deduct_ingredients() 
+                if hasattr(order, 'finish_order'): order.finish_order()
+                elif hasattr(order, 'deduct_ingredients'): order.deduct_ingredients()
             except ValidationError as e:
                 print(f"Ошибка склада: {e}")
-                # Если ингредиентов нет, заказ все равно создан, но мы пишем ошибку в консоль
 
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False})
+    return JsonResponse({'success': False}) 
 
-# 4. API Меню (Чтобы касса знала товары)
+# 4. API Меню
 def menu_api(request):
     items = MenuItem.objects.all()
     data = []
@@ -196,7 +201,7 @@ def menu_api(request):
     return JsonResponse({"menu": data})
 
 
-# --- ЗАГЛУШКИ (Если вдруг понадобятся старые функции) ---
+# --- ЗАГЛУШКИ ---
 def create_order_view(request): return JsonResponse({"status": "ok"})
 def complete_order_api(request): return JsonResponse({"status": "completed"})
 
@@ -207,15 +212,13 @@ def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
-            # Если логин/пароль верны — пускаем в систему
             user = form.get_user()
             login(request, user)
-            return redirect('home') # Перенаправляем на Главную
+            return redirect('home')
     else:
         form = AuthenticationForm()
-    
     return render(request, 'coffee/login.html', {'form': form})
 
 def logout_view(request):
-    logout(request) # Удаляем сессию
-    return redirect('login') # Кидаем обратно на страницу входа
+    logout(request)
+    return redirect('login')

@@ -173,3 +173,4 @@ EMAIL_HOST_USER = 'saparnursat727@gmail.com'
 EMAIL_HOST_PASSWORD = 'bcuevdtmniandiwq' 
 
 # Почта администратора (куда приходят копии ошибок)
+X_FRAME_OPTIONS = 'SAMEORIGIN'

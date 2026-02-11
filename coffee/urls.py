@@ -1,35 +1,25 @@
 from django.urls import path
-from .views import (
-    home_view, 
-    cashier_view, 
-    barista_view, 
-    archive_view, 
-    settings_view,
-    login_view,   # <--- Добавили
-    logout_view,  # <--- Добавили
-    # ... остальные ваши импорты ...
-    api_orders, api_update_status, api_create_order, create_order_view, analytics_view, menu_api, complete_order_api
-)
+from . import views
 
 urlpatterns = [
-    # Если человек заходит на пустой адрес, и он НЕ вошел -> кидаем на логин
-    # Но пока оставим главную как есть, просто добавим логин:
+    # Страницы
+    path('', views.home_view, name='home'),          # Главная (с кнопками)
+    path('cashier/', views.cashier_view, name='cashier'), # Касса
+    path('barista/', views.barista_view, name='barista'), # Кухня
+    path('archive/', views.archive_view, name='archive'), # Архив
+    path('analytics/', views.analytics_view, name='analytics'), # Аналитика
+    path('settings/', views.settings_view, name='settings'),    # Настройки
     
-    path('', home_view, name='home'),
-    path('login/', login_view, name='login'),   # Страница входа
-    path('logout/', logout_view, name='logout'), # Кнопка выхода (Замок)
+    # Авторизация
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+
+    # API (Команды)
+    path('api/order/create/', views.api_create_order, name='api_create_order'),
+    path('api/orders/', views.api_orders, name='api_orders'),
     
-    path('cashier/', cashier_view, name='cashier'),
-    path('barista/', barista_view, name='barista'),
-    path('archive/', archive_view, name='archive'),
-    path('settings/', settings_view, name='settings'),
+    # !!! ВОТ ЭТОЙ СТРОКИ СКОРЕЕ ВСЕГО НЕ БЫЛО !!!
+    path('api/order/<int:order_id>/update/', views.api_update_status, name='api_update_status'),
     
-    # ... ваши API ...
-    path('api/orders/', api_orders, name='api_orders'),
-    path('api/orders/update/<int:order_id>/', api_update_status, name='api_update_status'),
-    path('api/order/create/', api_create_order, name='api_create_order'),
-    path('create/', create_order_view, name='create_order'),
-    path('analytics/', analytics_view, name='analytics'),
-    path('api/menu/', menu_api, name='menu_api'),
-    path('api/complete/<int:order_id>/', complete_order_api, name='complete_order'),
+    path('api/menu/', views.menu_api, name='menu_api'),
 ]

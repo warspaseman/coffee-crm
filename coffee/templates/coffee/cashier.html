@@ -136,6 +136,93 @@
             color: #F3F4F6; transform: rotate(-10deg); z-index: 1; pointer-events: none;
         }
 
+        /* --- НОВЫЙ СТИЛЬ ДЛЯ КНОПКИ УДАЛЕНИЯ --- */
+        .btn-remove {
+            background: transparent;
+            border: none;
+            color: #EF4444; /* Красный цвет */
+            cursor: pointer;
+            padding: 4px 8px;
+            margin-left: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-remove:hover {
+            background: #FEE2E2; /* Светло-красный фон при наведении */
+        }
+        .cart-item-right {
+            display: flex;
+            align-items: center;
+        }
+        /* === МОДАЛЬНОЕ ОКНО (МОДИФИКАТОРЫ) === */
+        /* === МОДАЛЬНОЕ ОКНО (ОБНОВЛЕННЫЙ ДИЗАЙН ПЛИТОК) === */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; backdrop-filter: blur(2px);
+            justify-content: center; align-items: center;
+        }
+        .modal-window {
+            background: #fff; width: 450px; padding: 25px;
+            border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column; max-height: 85vh;
+        }
+        .modal-header { font-size: 22px; font-weight: 800; margin-bottom: 20px; display: flex; justify-content: space-between; color: #111; }
+        
+        /* КНОПКИ РАЗМЕРА */
+        .size-selector { display: flex; gap: 8px; margin-bottom: 25px; background: #F3F4F6; padding: 5px; border-radius: 12px; }
+        .size-btn { 
+            flex: 1; border: none; background: transparent; padding: 12px; 
+            border-radius: 10px; font-weight: 700; color: #6B7280; cursor: pointer; transition: all 0.2s; font-size: 14px;
+        }
+        .size-btn.active { background: white; color: #1F2937; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        /* === СПИСОК МОДИФИКАТОРОВ (ПЛИТКИ) === */
+        .mod-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Авто-сетка */
+            gap: 12px;
+            overflow-y: auto;
+            padding: 5px; margin-bottom: 20px;
+        }
+        
+        /* ЗАГОЛОВКИ ГРУПП */
+        .mod-group-title {
+            grid-column: 1 / -1; /* На всю ширину */
+            font-size: 13px; font-weight: 800; color: #9CA3AF;
+            margin: 15px 0 5px 0; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* ПЛИТКА */
+        .mod-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 12px;
+            border: 2px solid #E5E7EB; border-radius: 16px; background: #fff;
+            cursor: pointer; transition: all 0.15s ease-in-out; position: relative;
+            min-height: 70px;
+        }
+        /* Скрываем стандартный чекбокс */
+        .mod-item input { display: none; }
+
+        .mod-item:hover { border-color: #D1D5DB; transform: translateY(-2px); }
+        
+        /* Стиль ВЫБРАННОЙ плитки */
+        .mod-item.selected {
+            border-color: #059669; background: #ECFDF5;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+        }
+        
+        /* Текст в плитке */
+        .mod-item span:nth-of-type(1) { font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 4px; line-height: 1.2; }
+        .mod-item span:nth-of-type(2) { font-weight: 700; color: #059669; font-size: 12px; }
+
+        /* Кнопки действий */
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-cancel { flex: 1; padding: 14px; border: none; background: #F3F4F6; border-radius: 12px; font-weight: 700; color: #4B5563; cursor: pointer; }
+        .btn-confirm { flex: 1.5; padding: 14px; border: none; background: #1F2937; color: white; border-radius: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn-confirm:hover { background: #000; }
     </style>
 </head>
 <body>
@@ -143,15 +230,10 @@
     <div class="pos-container">
         
         <div class="panel-cart">
-            
-            <a href="{% url 'home' %}" class="btn-back">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                <span class="t-back">Назад</span>
-            </a>
 
             <div class="cart-header">
                 <span class="t-current">Текущий заказ</span>
-                <span class="order-badge">#31</span>
+                <span class="order-badge" id="ui-order-id">#{{ next_id }}</span>
             </div>
 
             <div class="cart-list" id="cart-items">
@@ -173,35 +255,49 @@
             <div class="search-container">
                 <input type="text" placeholder="Поиск товара..." class="search-input t-search-ph">
             </div>
-
             <div class="category-tabs">
-                <button class="tab-btn active" onclick="filterMenu('coffee')">☕ <span class="t-coffee">Кофе</span></button>
-                <button class="tab-btn" onclick="filterMenu('snacks')">🥐 <span class="t-food">Еда</span></button>
-                <button class="tab-btn" onclick="filterMenu('other')">🥤 <span class="t-other">Другое</span></button>
+                <button class="tab-btn active" onclick="filterMenu('coffee')"> <span class="t-coffee">Кофе</span></button>
+                <button class="tab-btn" onclick="filterMenu('tea')"> <span class="t-tea">Чай</span></button>
+                <button class="tab-btn" onclick="filterMenu('cold')"> <span class="t-cold">Хол. напитки</span></button>
+                <button class="tab-btn" onclick="filterMenu('pastry')"> <span class="t-pastry">Выпечка</span></button>
+                <button class="tab-btn" onclick="filterMenu('bowl')"> <span class="t-bowl">Боулы</span></button>
             </div>
 
             <div class="menu-grid" id="menu-grid">
-                <div class="menu-item" onclick="addToCart('Эспрессо', 800)" data-category="coffee">
-                    <div class="item-name">Эспрессо</div><div class="item-price">800 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3z"/></svg>
+                {% for item in products %}
+                <div class="menu-item" 
+                     onclick="addToCart('{{ item.name }}', {{ item.price|stringformat:'d' }}, {% if item.is_sized %}true{% else %}false{% endif %})" 
+                     data-category="{{ item.category }}">
+                    
+                    <div class="item-name">{{ item.name }}</div>
+                    <div class="item-price">{{ item.price|floatformat:0 }} ₸</div>
+                    
+                    {% if item.category == 'coffee' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3z"/></svg>
+                    
+                    {% elif item.category == 'tea' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2z"/></svg>
+                    
+                    {% elif item.category == 'cold' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.06 22.99h1.66c.84 0 1.53-.64 1.6-1.48L22.95 9.08a.99.99 0 0 0-.74-1.07l-1.07-.26L21.8 5.09l1.93.48a1 1 0 0 0 1.21-.76l.24-1a1 1 0 0 0-.75-1.21l-7.3-1.83a1 1 0 0 0-1.21.76l-.24 1a1 1 0 0 0 .76 1.21l1.93.48-.66 2.65-11.63-2.9.27-1.11a1.004 1.004 0 0 0-1.22-.76L4.14 2.3A1 1 0 0 0 2.92 3.52l.24 1A.996.996 0 0 0 4.38 5.3l1.93.48L5.59 9c-.53.13-.88.66-.75 1.2l3.43 14.28c.17.7.8 1.18 1.52 1.18h8.27v-2.67z"/></svg>
+
+                    {% elif item.category == 'pastry' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M22 10v9c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-9h20z"/></svg>
+                    
+                    {% elif item.category == 'bowl' %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M2 12c0 3.2 2.1 5.9 5 6.7V22h10v-3.3c2.9-.8 5-3.5 5-6.7H2zm9-6c1.6 0 3-1.4 3-3h-2c0 1-.6 1.9-1.5 2.5C10.1 5.2 10 5.1 10 5H8c0 .3.1.6.2.9C7.4 7.2 7 8.5 7 10h2c0-1.1.9-2 2-2z"/></svg>
+                    
+                    {% else %}
+                        <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                    {% endif %}
+
                 </div>
-                <div class="menu-item" onclick="addToCart('Американо', 900)" data-category="coffee">
-                    <div class="item-name">Американо</div><div class="item-price">900 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
-                </div>
-                <div class="menu-item" onclick="addToCart('Латте', 1400)" data-category="coffee">
-                    <div class="item-name">Латте</div><div class="item-price">1400 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path></svg>
-                </div>
-                <div class="menu-item" onclick="addToCart('Капучино', 1200)" data-category="coffee">
-                    <div class="item-name">Капучино</div><div class="item-price">1200 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M17 19h-1.4c-.66.8-1.63 1.34-2.71 1.48L13 22h-2l.11-1.52c-1.08-.14-2.05-.68-2.71-1.48H7c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2z"/></svg>
-                </div>
-                
-                <div class="menu-item" onclick="addToCart('Круассан', 850)" data-category="snacks">
-                    <div class="item-name">Круассан</div><div class="item-price">850 ₸</div>
-                    <svg class="bg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M22 10v9c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2v-9h20z"/></svg>
-                </div>
+                {% empty %}
+                    <div style="padding:20px; color:#999; grid-column: 1/-1; text-align:center;">
+                        Меню пустое. Добавь товары в Админке!
+                    </div>
+                {% endfor %}
+            </div>
 
                 <div class="menu-item" onclick="addToCart('Чай', 600)" data-category="other">
                     <div class="item-name">Чай</div><div class="item-price">600 ₸</div>
@@ -212,29 +308,214 @@
         </div>
 
     </div>
+    {{ modifiers|json_script:"modifiers-data" }}
 
-    <script>
-        const dict = {
-            'ru': { 'back': 'Назад', 'coffee': 'Кофе', 'food': 'Еда', 'other': 'Другое', 'current': 'Текущий заказ', 'total': 'Итого', 'pay': 'Оплатить', 'sent': 'Заказ отправлен на кухню! 👨‍🍳' },
-            'en': { 'back': 'Back', 'coffee': 'Coffee', 'food': 'Food', 'other': 'Other', 'current': 'Current Order', 'total': 'Total', 'pay': 'Charge', 'sent': 'Order sent to kitchen! 👨‍🍳' }
-        };
+    <div class="modal-overlay" id="modal-modifiers">
+        <div class="modal-window">
+            <div class="modal-header">
+                <span id="modal-item-name">Товар</span>
+                <span style="cursor:pointer;" onclick="closeModal()">✕</span>
+            </div>
+            
+            <div class="size-selector" id="size-block">
+                <button class="size-btn" onclick="selectSize('S', 0.7)" id="btn-size-s">0.25 л</button>
+                <button class="size-btn active" onclick="selectSize('M', 1.0)" id="btn-size-m">0.35 л</button>
+                <button class="size-btn" onclick="selectSize('L', 1.3)" id="btn-size-l">0.45 л</button>
+            </div>
 
-        function applyLang() {
-            const lang = localStorage.getItem('pos_lang') || 'ru';
-            document.querySelectorAll('[class^="t-"]').forEach(el => {
-                const key = el.className.split(' ')[0].replace('t-', '');
-                if (dict[lang][key]) el.innerText = dict[lang][key];
-            });
-            const ph = lang === 'en' ? "Search products..." : "Поиск товара...";
-            document.querySelector('.search-input').placeholder = ph;
-        }
-        applyLang();
+            <div class="mod-list" id="modal-list-container">
+                </div>
 
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+                <button class="btn-confirm" onclick="confirmAddToCart()">
+                    Добавить (<span id="modal-total-price">0</span> ₸)
+                </button>
+            </div>
+        </div>
+    </div>
+<script>
+        // === ДАННЫЕ ===
+        // Если вдруг JSON пустой, ставим пустой массив, чтобы не было ошибки
+        const modifiersDataElement = document.getElementById('modifiers-data');
+        const allModifiers = modifiersDataElement ? JSON.parse(modifiersDataElement.textContent) : [];
+        
+        const dict = { 'ru': { 'sent': 'Заказ отправлен!' }, 'en': { 'sent': 'Order sent!' } };
         let cart = [];
-        function addToCart(name, price) {
-            cart.push({name, price});
+        
+        // Переменные текущего выбора
+        let currentItemName = null; 
+        let currentItemBasePrice = 0;
+        let currentSize = 'M';        
+        let currentSizeMult = 1.0;
+
+        // === 1. ГЛАВНАЯ ФУНКЦИЯ ФИЛЬТРАЦИИ (ИСПРАВЛЕННАЯ) ===
+        function filterMenu(category) {
+            // 1. Управляем кнопками (визуал)
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                // Ищем кнопку, у которой в onclick написано имя нашей категории
+                // Это работает и при клике, и при автозапуске
+                if (btn.getAttribute('onclick').includes("'" + category + "'")) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // 2. Управляем товарами (скрываем/показываем)
+            const items = document.querySelectorAll('.menu-item');
+            items.forEach(item => {
+                if(item.dataset.category === category) {
+                    item.style.display = 'flex'; // Показываем
+                } else {
+                    item.style.display = 'none'; // Скрываем
+                }
+            });
+        }
+
+        // === 2. АВТОЗАПУСК ПРИ ВХОДЕ ===
+        document.addEventListener("DOMContentLoaded", function() {
+            // Сразу выбираем кофе, как только страница загрузилась
+            filterMenu('coffee');
+        });
+
+        // === 3. ОТКРЫТИЕ ОКНА МОДИФИКАТОРОВ ===
+        function addToCart(name, price, hasSizes) {
+            currentItemName = name;
+            currentItemBasePrice = parseInt(price);
+            
+            const sizeBlock = document.getElementById('size-block');
+
+            if (hasSizes) {
+                sizeBlock.style.display = 'flex';
+                selectSize('M', 1.0); 
+            } else {
+                sizeBlock.style.display = 'none';
+                currentSize = 'M'; 
+                currentSizeMult = 1.0;
+            }
+            
+            document.getElementById('modal-modifiers').style.display = 'flex';
+            document.getElementById('modal-item-name').innerText = name;
+            
+            renderModifiersList();
+            updateModalTotal();
+        }
+
+        // === 4. ЛОГИКА РАЗМЕРОВ ===
+        function selectSize(size, multiplier) {
+            currentSize = size;
+            currentSizeMult = multiplier;
+
+            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+            if(size === 'S') document.getElementById('btn-size-s').classList.add('active');
+            if(size === 'M') document.getElementById('btn-size-m').classList.add('active');
+            if(size === 'L') document.getElementById('btn-size-l').classList.add('active');
+
+            updateModalTotal();
+        }
+
+        // === 5. ОТРИСОВКА МОДИФИКАТОРОВ ===
+        function renderModifiersList() {
+            const container = document.getElementById('modal-list-container');
+            container.innerHTML = '';
+
+            const groups = {
+                'syrup': 'Сиропы',
+                'milk': 'Молоко',
+                'other': 'Добавки'
+            };
+
+            for (const [key, title] of Object.entries(groups)) {
+                const modsInGroup = allModifiers.filter(m => m.type === key);
+                
+                if (modsInGroup.length > 0) {
+                    container.innerHTML += `<div class="mod-group-title">${title}</div>`;
+                    modsInGroup.forEach(mod => {
+                        const modPrice = parseFloat(mod.price);
+                        container.innerHTML += `
+                            <div class="mod-item" onclick="toggleMod(this)">
+                                <input type="checkbox" value="${mod.id}" data-price="${modPrice}" data-name="${mod.name}">
+                                <span>${mod.name}</span>
+                                <span style="font-weight:bold;">${modPrice > 0 ? '+' + modPrice : ''} ₸</span>
+                            </div>
+                        `;
+                    });
+                }
+            }
+        }
+
+        // === 6. ВЫБОР В ОКНЕ ===
+        function toggleMod(div) {
+            const checkbox = div.querySelector('input');
+            checkbox.checked = !checkbox.checked;
+            
+            if(checkbox.checked) div.classList.add('selected');
+            else div.classList.remove('selected');
+
+            updateModalTotal();
+        }
+
+        function updateModalTotal() {
+            let base = currentItemBasePrice * currentSizeMult;
+            let modsTotal = 0;
+            document.querySelectorAll('.mod-item input:checked').forEach(input => {
+                modsTotal += parseFloat(input.dataset.price);
+            });
+            const finalPrice = Math.round(base + modsTotal);
+            document.getElementById('modal-total-price').innerText = finalPrice;
+        }
+
+        function closeModal() {
+            document.getElementById('modal-modifiers').style.display = 'none';
+        }
+
+        // === 7. ДОБАВЛЕНИЕ В КОРЗИНУ ===
+        function confirmAddToCart() {
+            const selectedMods = [];
+            let modsPrice = 0;
+
+            document.querySelectorAll('.mod-item input:checked').forEach(input => {
+                selectedMods.push({ id: input.value, name: input.dataset.name });
+                modsPrice += parseFloat(input.dataset.price);
+            });
+
+            let sizeLabel = (currentSize === 'S') ? '0.25' : (currentSize === 'L') ? '0.45' : '0.35';
+            // Если размеров нет (скрыты), не пишем объем в чек, чтобы не путать
+            if (document.getElementById('size-block').style.display === 'none') {
+                sizeLabel = ''; 
+            }
+
+            let details = [];
+            if(sizeLabel) details.push(sizeLabel);
+            selectedMods.forEach(m => details.push(m.name));
+            
+            let displayName = currentItemName;
+            if (details.length > 0) {
+                displayName += ` <span style="font-size:13px; color:#666;">(${details.join(', ')})</span>`;
+            }
+
+            const finalPrice = Math.round((currentItemBasePrice * currentSizeMult) + modsPrice);
+
+            cart.push({
+                id: Date.now() + Math.random(),
+                name: displayName,
+                realName: currentItemName,
+                size: currentSize,
+                price: finalPrice,
+                modifiers: selectedMods.map(m => m.id)
+            });
+
+            renderCart();
+            closeModal();
+        }
+
+        // === 8. КОРЗИНА И ОТПРАВКА ===
+        function removeFromCart(index) {
+            cart.splice(index, 1);
             renderCart();
         }
+
         function renderCart() {
             const container = document.getElementById('cart-items');
             container.innerHTML = '';
@@ -244,39 +525,54 @@
                 container.innerHTML = '<div style="color:#aaa; text-align:center; padding-top:20px;">Корзина пуста</div>';
             }
 
-            cart.forEach(item => {
+            cart.forEach((item, index) => {
                 total += item.price;
                 container.innerHTML += `
                     <div class="cart-item">
-                        <span>${item.name}</span>
-                        <span style="font-weight:700;">${item.price} ₸</span>
+                        <div style="display:flex; flex-direction:column;">
+                            <span>${item.name}</span>
+                        </div>
+                        <div class="cart-item-right">
+                            <span style="font-weight:700;">${item.price} ₸</span>
+                            <button class="btn-remove" onclick="removeFromCart(${index})">✕</button>
+                        </div>
                     </div>`;
             });
             document.getElementById('total-price').innerText = total + " ₸";
         }
+
         function submitOrder() {
             if(cart.length === 0) return alert("Корзина пуста!");
+            
+            const itemsToSend = cart.map(item => ({
+                name: item.realName,
+                size: item.size,
+                modifiers: item.modifiers
+            }));
+
             fetch('/api/order/create/', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ items: cart })
+                body: JSON.stringify({ items: itemsToSend })
             })
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    const lang = localStorage.getItem('pos_lang') || 'ru';
-                    alert(dict[lang]['sent']); 
+                    alert("Заказ отправлен! 👨‍🍳");
+                    // Пытаемся обновить бейдж в родительском окне (если получится) или в текущем
+                    try {
+                        const badge = window.parent.document.querySelector('.status-badge'); 
+                        // Но у нас бейдж номера заказа внутри cashier.html?
+                        const orderBadge = document.getElementById('ui-order-id');
+                        if(orderBadge) {
+                            let currentNum = parseInt(orderBadge.innerText.replace('#', ''));
+                            orderBadge.innerText = '#' + (currentNum + 1);
+                        }
+                    } catch(e) {}
+
                     cart = []; renderCart();
                 } else {
                     alert("Ошибка: " + data.error);
                 }
-            });
-        }
-        function filterMenu(category) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            document.querySelectorAll('.menu-item').forEach(item => {
-                if(item.dataset.category === category) item.style.display = 'flex';
-                else item.style.display = 'none';
             });
         }
     </script>
