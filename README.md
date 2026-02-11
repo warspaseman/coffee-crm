@@ -121,18 +121,11 @@ EMAIL_HOST_USER = 'your-email@gmail.com'
 EMAIL_HOST_PASSWORD = 'your-16-digit-app-password'
 ```
 Roadmap
-[x] Basic POS & Inventory
+Basic POS & Inventory
+Auto-Ordering via Email
+Financial Analytics
+Auto-Prediction system
 
-[x] Auto-Ordering via Email
-
-[x] Financial Analytics
-
-[ ] User Roles & Permissions (RBAC)
-
-[ ] Docker Support
-
-License
-This project is licensed under the MIT License.
 <div align="center">
 Developed by Nursat Sapar and Suiinbaiissaui Kabzakiruly
 
