@@ -1,7 +1,7 @@
 <div align="center">
 
 # Smart Coffee CRM
-### Next-Gen POS & Inventory Automation System
+### Next-Gen Inventory Automation System
 
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg?style=flat&logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/django-4.2-092E20.svg?style=flat&logo=django&logoColor=white)
