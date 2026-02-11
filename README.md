@@ -126,6 +126,26 @@ Auto-Ordering via Email
 Financial Analytics
 Auto-Prediction system
 
+## Production Roadmap & Optimization
+
+Currently, the project operates in a **Development Environment (MVP)**. Below is the technical migration plan for the **Production Release**:
+
+### Infrastructure Upgrade
+- **Database:** Migration from `SQLite` to **PostgreSQL** to support high-concurrency transactions for multiple POS terminals.
+- **Web Server:** Implementation of **Nginx** as a reverse proxy and **Gunicorn** as the WSGI application server.
+- **Static Files:** Configuring Nginx to serve static & media assets (product images) efficiently.
+
+### Performance & Async Tasks
+- **Background Tasks:** Integration of **Celery & Redis** to handle:
+    - Asynchronous email notifications to suppliers (preventing UI blocking).
+    - Scheduled AI revenue forecasting (running nightly instead of on-request).
+- **Optimization:** Enabling database query caching for the Analytics Dashboard.
+
+### Security Hardening
+- **Configuration:** Switching to `DEBUG=False` and moving sensitive credentials (API keys, DB passwords) to **Environment Variables (.env)**.
+- **Access Control:** Implementing stricter Role-Based Access Control (RBAC) to separate Cashier and Manager permissions.
+- **SSL:** Enabling HTTPS for secure data transmission.
+
 <div align="center">
 Developed by Nursat Sapar and Suiinbaiissaui Kabzakiruly
 
