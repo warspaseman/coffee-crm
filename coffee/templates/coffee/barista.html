@@ -144,7 +144,7 @@
             });
 
             if (orders.length === 0 && container.children.length === 0) {
-                container.innerHTML = '<div class="no-orders">ОТДЫХАЙ</div>';
+                container.innerHTML = '<div class="no-orders">u r free now</div>';
             } else {
                 const emptyMsg = container.querySelector('.no-orders');
                 if (emptyMsg) emptyMsg.remove();
@@ -163,16 +163,16 @@
             let extraBodyHtml = '';
 
             if (order.status === 'pending') {
-                footerHtml = `<button class="action-btn btn-start" onclick="updateStatus(${order.id}, 'preparing')">Начать 🔥</button>`;
+                footerHtml = `<button class="action-btn btn-start" onclick="updateStatus(${order.id}, 'preparing')">Start</button>`;
             } 
             else if (order.status === 'preparing') {
                 // Таймер вставляем пустой, функция updateTimers его заполнит через 1мс
                 extraBodyHtml = `<div class="timer-badge" id="timer-${order.id}">00:00</div>`;
-                footerHtml = `<button class="action-btn btn-ready" onclick="updateStatus(${order.id}, 'ready')">Готово ✅</button>`;
+                footerHtml = `<button class="action-btn btn-ready" onclick="updateStatus(${order.id}, 'ready')">Ready</button>`;
             } 
             else if (order.status === 'ready') {
-                extraBodyHtml = `<div class="ready-message">Зови гостя! 📢</div>`;
-                footerHtml = `<button class="action-btn btn-serve" onclick="updateStatus(${order.id}, 'completed')">Выдан 👋</button>`;
+                extraBodyHtml = `<div class="ready-message">Call the customer! 📢</div>`;
+                footerHtml = `<button class="action-btn btn-serve" onclick="updateStatus(${order.id}, 'completed')">Served </button>`;
             }
 
             return `
