@@ -1,9 +1,9 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Настройки</title>
+    <title>Settings</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #F3F4F6; padding: 40px; }
         
@@ -12,7 +12,7 @@
         .title { font-size: 28px; font-weight: 800; color: #111; }
         .subtitle { color: #6B7280; margin-top: 5px; }
 
-        /* === КАРТОЧКА СМЕНЫ (ГЛАВНАЯ) === */
+        /* === SHIFT CARD (MAIN) === */
         .shift-card {
             background: #fff; padding: 30px; border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 40px;
@@ -30,7 +30,7 @@
         .stat-val { font-size: 24px; font-weight: 800; color: #111; }
         .stat-lbl { font-size: 12px; color: #9CA3AF; text-transform: uppercase; font-weight: 700; }
 
-        /* КНОПКИ СМЕНЫ */
+        /* SHIFT BUTTONS */
         .btn-shift {
             padding: 15px 30px; border: none; border-radius: 12px;
             font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s;
@@ -42,7 +42,7 @@
         .btn-close { background: #FEE2E2; color: #EF4444; }
         .btn-close:hover { background: #FECACA; }
 
-        /* === СЕТКА ОСТАЛЬНЫХ НАСТРОЕК === */
+        /* === GRID FOR OTHER SETTINGS === */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 
         .card {
@@ -70,41 +70,41 @@
 
     <div class="container">
         <div class="header">
-            <div class="title">Панель управления</div>
-            <div class="subtitle">Управление сменой и складом</div>
+            <div class="title">Control Panel</div>
+            <div class="subtitle">Shift and Inventory Management</div>
         </div>
 
         <div class="shift-card">
             <div class="sc-left">
                 {% if shift_status == 'open' %}
-                    <h2>Смена #{{ shift_id }} открыта</h2>
-                    <div class="sc-status"><span class="dot green"></span> Работаем</div>
+                    <h2>Shift #{{ shift_id }} is Open</h2>
+                    <div class="sc-status"><span class="dot green"></span> Active</div>
                     
                     <div class="sc-stats">
                         <div>
-                            <div class="stat-lbl">Выручка</div>
+                            <div class="stat-lbl">Revenue</div>
                             <div class="stat-val">{{ current_total|floatformat:0 }} ₸</div>
                         </div>
                         <div>
-                            <div class="stat-lbl">Чеков</div>
+                            <div class="stat-lbl">Receipts</div>
                             <div class="stat-val">{{ order_count }}</div>
                         </div>
                     </div>
                 {% else %}
-                    <h2>Смена закрыта</h2>
-                    <div class="sc-status"><span class="dot red"></span> Касса не работает</div>
-                    <p style="color:#9CA3AF; margin-top:10px; font-size:14px;">Откройте смену, чтобы начать принимать заказы.</p>
+                    <h2>Shift Closed</h2>
+                    <div class="sc-status"><span class="dot red"></span> Register Inactive</div>
+                    <p style="color:#9CA3AF; margin-top:10px; font-size:14px;">Open a shift to start accepting orders.</p>
                 {% endif %}
             </div>
 
             <div class="sc-right">
                 {% if shift_status == 'open' %}
                     <button class="btn-shift btn-close" onclick="manageShift('close')">
-                        Закрыть смену 🔒
+                        Close Shift 🔒
                     </button>
                 {% else %}
                     <button class="btn-shift btn-open" onclick="manageShift('open')">
-                        Открыть смену 🚀
+                        Open Shift 🚀
                     </button>
                 {% endif %}
             </div>
@@ -115,16 +115,16 @@
             <a href="{% url 'analytics' %}" class="card c-blue">
                 <div>
                     <div class="card-icon">📊</div>
-                    <div class="card-title">Аналитика</div>
-                    <div class="card-desc">Графики продаж и отчеты</div>
+                    <div class="card-title">Analytics</div>
+                    <div class="card-desc">Sales charts and reports</div>
                 </div>
             </a>
 
             <a href="/admin/" target="_blank" class="card c-purple">
                 <div>
                     <div class="card-icon">📦</div>
-                    <div class="card-title">Склад и Меню</div>
-                    <div class="card-desc">Добавление товаров, инвентаризация</div>
+                    <div class="card-title">Stock & Menu</div>
+                    <div class="card-desc">Add products, inventory check</div>
                 </div>
             </a>
 
@@ -133,10 +133,9 @@
 
     <script>
         function manageShift(action) {
-            let confirmMsg = action === 'open' ? 'Открыть новую смену?' : 'Закрыть смену и снять Z-отчет?';
+            let confirmMsg = action === 'open' ? 'Open a new shift?' : 'Close shift and generate Z-report?';
             if (!confirm(confirmMsg)) return;
 
-            // Используем тот же API, что и раньше
             fetch(`/api/shift/${action}/`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': getCookie('csrftoken') }
@@ -145,18 +144,17 @@
             .then(data => {
                 if (data.success) {
                     if (action === 'close') {
-                        alert(`Смена закрыта!\n💰 Итого: ${data.summary.total} ₸`);
+                        alert(`Shift closed!\n💰 Total: ${data.summary.total} ₸`);
                     } else {
-                        alert("Смена открыта! Удачной работы!");
+                        alert("Shift opened! Have a great work day!");
                     }
-                    location.reload(); // Перезагружаем страницу, чтобы обновить статус
+                    location.reload(); 
                 } else {
-                    alert("Ошибка: " + data.error);
+                    alert("Error: " + data.error);
                 }
             });
         }
 
-        // Хелпер для Cookie (стандартный Django)
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {

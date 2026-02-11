@@ -1,14 +1,14 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Архив</title>
+    <title>Archive</title>
     <style>
         body { margin: 0; background: #F3F4F6; font-family: system-ui, sans-serif; padding: 20px; }
         .header { margin-bottom: 20px; font-size: 24px; font-weight: 800; color: #111; }
         
-        /* Простой список карточек (как было, но без шапки управления) */
+        /* Simple card list */
         .order-row {
             background: #fff; padding: 15px 20px; border-radius: 12px;
             display: flex; align-items: center; justify-content: space-between;
@@ -16,11 +16,10 @@
         }
         .o-id { font-weight: 900; color: #374151; width: 60px; }
         .o-price { font-weight: 800; font-size: 16px; }
-        /* ... остальные стили можешь оставить те же ... */
     </style>
 </head>
 <body>
-    <div class="header">История заказов (Текущая смена)</div>
+    <div class="header">Order History (Current Shift)</div>
 
     <div class="orders-list">
         {% for order in orders %}
@@ -37,7 +36,7 @@
                 <div class="o-price">{{ order.total_price|floatformat:0 }} ₸</div>
             </div>
         {% empty %}
-            <div style="text-align:center; padding:40px; color:#999;">Нет заказов в этой смене</div>
+            <div style="text-align:center; padding:40px; color:#999;">No orders in this shift</div>
         {% endfor %}
     </div>
 </body>

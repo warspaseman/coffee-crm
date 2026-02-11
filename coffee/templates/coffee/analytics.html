@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Аналитика Кофейни</title>
+    <title>Coffee Shop Analytics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #F2F3F5; margin: 0; padding: 20px; }
         .dashboard { max-width: 1000px; margin: 0 auto; }
         
-        /* ОБНОВЛЕННАЯ КНОПКА НАЗАД (Как в настройках) */
+        /* UPDATED BACK BUTTON (Same as settings) */
         .btn-back {
             background-color: #E5E5EA; color: #000; padding: 10px 20px; border-radius: 20px;
             text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; 
@@ -18,7 +18,7 @@
 
         h1 { text-align: center; color: #333; margin-bottom: 25px; margin-top: 0; }
 
-        /* Фильтры */
+        /* Filters */
         .filters { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
         .filter-btn { 
             text-decoration: none; color: #555; background: white; 
@@ -28,7 +28,7 @@
         .filter-btn:hover { background: #eee; }
         .filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
 
-        /* Карточки */
+        /* Cards */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
         .card h3 { margin: 0; color: #777; font-size: 14px; text-transform: uppercase; }
@@ -36,11 +36,11 @@
         .card .green { color: #27ae60; }
         .card .blue { color: #2980b9; }
 
-        /* Сетка контента */
+        /* Content Grid */
         .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         .chart-container, .items-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        /* Список товаров */
+        /* Items List */
         .items-container h3 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .items-list { max-height: 400px; overflow-y: auto; }
         .item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f9f9f9; }
@@ -53,26 +53,26 @@
 <div class="dashboard">
     <a href="{% url 'settings' %}" class="btn-back">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Назад
+        Back
     </a>
 
-    <h1>Финансовый Отчет</h1>
+    <h1>Financial Report</h1>
 
     <div class="filters">
-        <a href="?period=7" class="filter-btn {% if period == '7' %}active{% endif %}">7 дней</a>
-        <a href="?period=30" class="filter-btn {% if period == '30' %}active{% endif %}">1 Месяц</a>
-        <a href="?period=90" class="filter-btn {% if period == '90' %}active{% endif %}">3 Месяца</a>
-        <a href="?period=180" class="filter-btn {% if period == '180' %}active{% endif %}">6 Месяцев</a>
-        <a href="?period=365" class="filter-btn {% if period == '365' %}active{% endif %}">1 Год</a>
+        <a href="?period=7" class="filter-btn {% if period == '7' %}active{% endif %}">7 Days</a>
+        <a href="?period=30" class="filter-btn {% if period == '30' %}active{% endif %}">1 Month</a>
+        <a href="?period=90" class="filter-btn {% if period == '90' %}active{% endif %}">3 Months</a>
+        <a href="?period=180" class="filter-btn {% if period == '180' %}active{% endif %}">6 Months</a>
+        <a href="?period=365" class="filter-btn {% if period == '365' %}active{% endif %}">1 Year</a>
     </div>
 
     <div class="stats-grid">
         <div class="card">
-            <h3>Выручка за период</h3>
+            <h3>Revenue for Period</h3>
             <div class="number green">{{ revenue }} ₸</div>
         </div>
         <div class="card">
-            <h3>Продано заказов</h3>
+            <h3>Total Orders</h3>
             <div class="number blue">{{ orders_count }}</div>
         </div>
     </div>
@@ -83,17 +83,17 @@
         </div>
 
         <div class="items-container">
-            <h3> Продажи по товарам</h3>
+            <h3>Product Sales</h3>
             <div class="items-list">
                 {% if all_items %}
                     {% for item in all_items %}
                     <div class="item-row">
                         <span class="item-name">{{ forloop.counter }}. {{ item.menu_item__name }}</span>
-                        <span class="item-count">{{ item.sold_count }} шт.</span>
+                        <span class="item-count">{{ item.sold_count }} pcs</span>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <p style="color: #999; text-align: center;">Нет продаж за этот период</p>
+                    <p style="color: #999; text-align: center;">No sales for this period</p>
                 {% endif %}
             </div>
         </div>
@@ -110,7 +110,7 @@
         data: {
             labels: dates,
             datasets: [{
-                label: 'Выручка (₸)',
+                label: 'Revenue (₸)',
                 data: revenues,
                 borderColor: '#27ae60',
                 backgroundColor: 'rgba(39, 174, 96, 0.1)',
