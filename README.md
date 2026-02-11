@@ -37,7 +37,42 @@ The core philosophy of this project is **Automation First**. The system autonomo
 * **Metrics:** Real-time Revenue, Order Count, and Sales Reports.
 * **Time-Series Data:** Filter analytics by Week, Month, Quarter, or Year.
 
+## Machine Learning (AI Module)
+
+The system features an intelligent forecasting engine to prevent stockouts and optimize purchasing.
+
+### Algorithm Description
+We implemented a **Time Series Forecasting** approach using the **"Day-of-Week Seasonality with Moving Averages"** method. This model is ideal for the coffee industry, where demand follows strict weekly cycles (e.g., higher traffic on weekends vs. weekdays).
+
+
+
+### Implementation Logic
+The core logic resides in the `get_ai_forecast()` function:
+1.  **Data Extraction:** Queries historical data from the `OrderItem` table.
+2.  **Filtering:** Analyzes sales specifically from the same day of the week over the last 4 weeks.
+3.  **Aggregation:** Calculates the Moving Average to predict tomorrow's demand.
+4.  **Inventory Comparison:**
+    * **Stock < Forecast:** <span style="color:red">**CRITICAL (Reorder Needed)**</span> 
+    * **Stock < 1.5 * Forecast:** <span style="color:orange">**WARNING (Low Stock)**</span> 
+    * **Stock > Forecast:** <span style="color:green">**OK (Safe)**</span> 
+
 ---
+
+## API Specification
+
+The Frontend and Backend communicate via **JSON payloads**, allowing for a decoupled and scalable architecture.
+
+
+
+**Workflow:**
+When a cashier places an order, the browser sends a structured JSON object to the Django server:
+```json
+{
+  "items": [
+    {"name": "Latte", "quantity": 1, "modifiers": [1, 5]}
+  ]
+}
+```
 
 ## Tech Stack
 
